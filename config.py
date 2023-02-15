@@ -1,10 +1,13 @@
 from __future__ import annotations
+
+import sys
 from typing import List, Union, Literal
-from pydantic import BaseModel, BaseConfig, Extra, Field
+
+import toml
 from charset_normalizer import from_bytes
 from loguru import logger
-import sys
-import toml
+from pydantic import BaseModel, BaseConfig, Extra
+
 
 class Mirai(BaseModel):
     qq: int
@@ -15,6 +18,7 @@ class Mirai(BaseModel):
     """mirai-api-http 的 http 适配器地址"""
     ws_url: str = "http://localhost:8080"
     """mirai-api-http 的 ws 适配器地址"""
+
 
 class OpenAIAuth(BaseModel):
     email: Union[str, None] = None
@@ -28,11 +32,13 @@ class OpenAIAuth(BaseModel):
     insecure_auth: bool = False
     """使用第三方代理登录"""
     temperature: float = 0.5
-    """情感值，越高话越多""" 
+    """情感值，越高话越多"""
     paid: bool = False
-    """使用付费模型""" 
+    """使用付费模型"""
+
     class Config(BaseConfig):
         extra = Extra.allow
+
 
 class TextToImage(BaseModel):
     font_size: int = 30
@@ -82,7 +88,7 @@ class Response(BaseModel):
 
     quote: bool = True
     """是否回复触发的那条消息"""
-    
+
     timeout: float = 30.0
     """发送提醒前允许的响应时间"""
 
@@ -92,6 +98,7 @@ class Response(BaseModel):
     request_too_fast: str = "当前正在处理的请求太多了，请稍等一会再发吧！"
     """服务器提示 429 错误时的回复 """
 
+
 class System(BaseModel):
     accept_group_invite: bool = False
     """自动接收邀请入群请求"""
@@ -99,10 +106,15 @@ class System(BaseModel):
     accept_friend_request: bool = False
     """自动接收好友请求"""
 
+    rev_chat_gpt_version: str = "V1"
+    """使用revChatGPT哪个接口 V1或者V2 参考：https://github.com/acheong08/ChatGPT"""
+
+
 class Preset(BaseModel):
     command: str = r"加载预设 (\w+)"
     keywords: dict[str, str] = dict()
     loaded_successful: str = "预设加载成功！"
+
 
 class Config(BaseModel):
     mirai: Mirai
@@ -119,7 +131,7 @@ class Config(BaseModel):
                 guessed_str = from_bytes(f.read()).best()
                 if not guessed_str:
                     raise ValueError("无法识别预设的 JSON 格式，请检查编码！")
-                
+
                 return str(guessed_str).replace('\r', '').strip().split('\n\n')
         except KeyError as e:
             raise ValueError("预设不存在！")
@@ -143,12 +155,12 @@ class Config(BaseModel):
             logger.error("配置文件有误，请重新修改！")
             exit(-1)
 
-
     @staticmethod
     def load_config() -> Config:
         try:
             import os
-            if not (os.path.exists('config.cfg') and os.path.getsize('config.cfg') > 0) and os.path.exists('config.json'):
+            if not (os.path.exists('config.cfg') and os.path.getsize('config.cfg') > 0) and os.path.exists(
+                    'config.json'):
                 logger.info("正在转换旧版配置文件……")
                 Config.save_config(Config.__load_json_config())
                 logger.warning("提示：配置文件已经修改为 config.cfg，原来的 config.json 将被重命名为 config.json.old。")
@@ -174,5 +186,5 @@ class Config(BaseModel):
                 parsed_str = toml.dumps(config.dict()).encode(sys.getdefaultencoding())
                 f.write(parsed_str)
         except Exception as e:
-                logger.exception(e)
-                logger.warning("配置保存失败。")
+            logger.exception(e)
+            logger.warning("配置保存失败。")
