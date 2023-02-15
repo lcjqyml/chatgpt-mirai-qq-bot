@@ -18,12 +18,19 @@ def setup():
     if not (config.openai.email and config.openai.password):
         logger.error("配置文件出错！请配置 OpenAI 的邮箱、密码。")
         exit(-1)
-    bot = Chatbot(config={
-        "email": config.openai.email,
-        "password": config.openai.password,
-        "proxy": config.openai.proxy,
-        "paid": config.openai.paid
-    })
+    if config.openai.proxy:
+        bot = Chatbot(config={
+            "email": config.openai.email,
+            "password": config.openai.password,
+            "proxy": config.openai.proxy,
+            "paid": config.openai.paid
+        })
+    else:
+        bot = Chatbot(config={
+            "email": config.openai.email,
+            "password": config.openai.password,
+            "paid": config.openai.paid
+        })
 
 
 class ChatSession:
