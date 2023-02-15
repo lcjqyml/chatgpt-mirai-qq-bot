@@ -27,6 +27,8 @@ class OpenAIAuth(BaseModel):
     """OpenAI 密码"""
     session_token: Union[str, None] = None
     """OpenAI 的 session_token，使用 Google 或者 微软登录者使用"""
+    access_token: Union[str, None] = None
+    """OpenAI 的 access_token，登录后访问`https://chat.openai.com/api/auth/session`可获取，配合rev_chat_gpt_version=V1使用"""
     proxy: Union[str, None] = None
     """可选的本地代理服务器"""
     insecure_auth: bool = False

@@ -13,24 +13,28 @@ os.environ.setdefault('TEMPERATURE', str(config.openai.temperature))
 bot = None
 
 
+def get_auth_config():
+    auth_config = {}
+    if config.openai.email and config.openai.password:
+        auth_config["email"] = config.openai.email
+        auth_config["password"] = config.openai.password
+    if config.openai.proxy:
+        auth_config["proxy"] = config.openai.proxy
+    if config.openai.paid:
+        auth_config["paid"] = config.openai.paid
+    if config.openai.session_token:
+        auth_config["session_token"] = config.openai.session_token
+    if config.openai.access_token:
+        auth_config["access_token"] = config.openai.access_token
+    return auth_config
+
+
 def setup():
     global bot
-    if not (config.openai.email and config.openai.password):
-        logger.error("配置文件出错！请配置 OpenAI 的邮箱、密码。")
+    if not (config.openai.email and config.openai.password) and not config.openai.access_token:
+        logger.error("配置文件出错！请配置 OpenAI 的邮箱、密码或者access_token。")
         exit(-1)
-    if config.openai.proxy:
-        bot = Chatbot(config={
-            "email": config.openai.email,
-            "password": config.openai.password,
-            "proxy": config.openai.proxy,
-            "paid": config.openai.paid
-        })
-    else:
-        bot = Chatbot(config={
-            "email": config.openai.email,
-            "password": config.openai.password,
-            "paid": config.openai.paid
-        })
+    bot = Chatbot(config=get_auth_config())
 
 
 class ChatSession:
@@ -45,9 +49,12 @@ class ChatSession:
     def get_chat_response(self, message) -> str:
         with self.lock:
             os.environ.setdefault('BASE_PROMPT', self.base_prompt)
-            result = ''
+            result = ""
+            prev_text = ""
             for data in bot.ask(message, conversation_id=self.conversation_id):
-                result = result + data["message"]
+                response_text = data["message"][len(prev_text):]
+                result = result + response_text
+                prev_text = data["message"]
             return result
 
 
