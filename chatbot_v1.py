@@ -40,22 +40,19 @@ def setup():
 class ChatSession:
     conversation_id: str
     base_prompt: str = '你是 ChatGPT，一个大型语言模型。请以对话方式回复。\n\n\n'
-    lock: asyncio.Lock
 
     def __init__(self, conversation_id):
         self.conversation_id = conversation_id
-        self.lock = asyncio.Lock()
 
     def get_chat_response(self, message) -> str:
-        with self.lock:
-            os.environ.setdefault('BASE_PROMPT', self.base_prompt)
-            result = ""
-            prev_text = ""
-            for data in bot.ask(message, conversation_id=self.conversation_id):
-                response_text = data["message"][len(prev_text):]
-                result = result + response_text
-                prev_text = data["message"]
-            return result
+        os.environ.setdefault('BASE_PROMPT', self.base_prompt)
+        result = ""
+        prev_text = ""
+        for data in bot.ask(message, conversation_id=self.conversation_id):
+            response_text = data["message"][len(prev_text):]
+            result = result + response_text
+            prev_text = data["message"]
+        return result
 
 
 __sessions = {}
