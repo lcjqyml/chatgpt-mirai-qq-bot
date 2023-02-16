@@ -78,7 +78,10 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
         if "Too many requests" in str(e):
             return config.response.request_too_fast
         logger.exception(e)
-        return config.response.error_format.format(exc=e)
+        if is_api_v2:
+            return config.response.error_format.format(exc=e)
+        else:
+            return config.response.error_format_v1.format(exe=e)
     finally:
         timeout_task.cancel()
 

@@ -87,6 +87,11 @@ class Response(BaseModel):
         "\n{exc}"
     )
     """发生错误时发送的消息，请注意可以插入 {exc} 作为异常占位符"""
+    error_format_v1: str = (
+        "出现故障！"
+        "\n{exc}"
+    )
+    """发生错误时发送的消息，请注意可以插入 {exc} 作为异常占位符"""
 
     quote: bool = True
     """是否回复触发的那条消息"""
