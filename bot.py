@@ -46,7 +46,7 @@ async def create_timeout_task(target: Union[Friend, Group], source: Source):
     await app.send_message(target, config.response.timeout_format, quote=source if config.response.quote else False)
 
 
-async def handle_message(target: Union[Friend, Group], session_id: str, message: str, source: Source) -> str:
+async def handle_message(target: Union[Friend, Group], session_id: str, message: str, source: Source, silence=False) -> str:
     if not message.strip():
         return config.response.placeholder
 
@@ -66,16 +66,17 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
         return config.response.queue_full
     else:
         # 提示用户：请求已加入队列
-        if session.chatbot.queue_size > config.response.queued_notice_size:
-            await app.send_message(target, config.response.queued_notice.format(queue_size=session.chatbot.queue_size),
-                                   quote=source if config.response.quote else False)
+        if not silence:
+            if session.chatbot.queue_size > config.response.queued_notice_size:
+                await app.send_message(target, config.response.queued_notice.format(queue_size=session.chatbot.queue_size),
+                                       quote=source if config.response.quote else False)
 
     # 以下开始需要排队
 
     async with session.chatbot:
         try:
-
-            timeout_task = asyncio.create_task(create_timeout_task(target, source))
+            if not silence:
+                timeout_task = asyncio.create_task(create_timeout_task(target, source))
 
             # 重置会话
             if message.strip() in config.trigger.reset_command:
@@ -90,7 +91,10 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
             preset_search = re.search(config.presets.command, message)
             if preset_search:
                 async for progress in session.load_conversation(preset_search.group(1)):
-                    await app.send_message(target, progress, quote=source if config.response.quote else False)
+                    if not silence:
+                        await app.send_message(target, progress, quote=source if config.response.quote else False)
+                    else:
+                        logger.debug(f"{message} -> {progress}")
                 return config.presets.loaded_successful
             # 正常交流
             resp = await session.get_chat_response(message)
@@ -164,5 +168,5 @@ async def start_background(loop: asyncio.AbstractEventLoop):
     logger.info("OpenAI 服务器登录成功")
     logger.info("尝试从 Mirai 服务中读取机器人 QQ 的 session key……")
 
-
-app.launch_blocking()
+if os.getenv('RUNNING_MODE') != "http":
+    app.launch_blocking()

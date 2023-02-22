@@ -349,6 +349,23 @@ loaded_successful = "预设加载成功！"
 # 里面是一些设置
 ```
 
+### HTTP服务支持
+启动时，环境变量包含`RUNNING_MODE=http`，则不会连接qq，只会在登录OpenAI后，启动服务并监听8080端口，服务提供接口：
+```
+POST /v1/chatgpt/ask/{session_id}
+``` 
+请求body接受json，如下：
+```json
+{
+  "message": "重置会话"
+}
+```
+返回json，如下：
+```json
+{
+  "success": "会话已重置。"
+}
+```
 ### 登录模式选择
 
 现在我们支持多种方式访问 OpenAI 服务器， 你可以在配置文件中选择所使用的模式。  
