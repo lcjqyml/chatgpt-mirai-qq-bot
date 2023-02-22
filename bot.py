@@ -1,11 +1,7 @@
 import os
 import sys
 
-from requests.exceptions import SSLError
-
 sys.path.append(os.getcwd())
-
-from io import BytesIO
 from typing import Union
 from typing_extensions import Annotated
 from graia.ariadne.app import Ariadne
@@ -18,16 +14,16 @@ from graia.ariadne.message import Source
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.parser.base import DetectPrefix, MentionMe
 from graia.ariadne.event.mirai import NewFriendRequestEvent, BotInvitedJoinGroupRequestEvent
-from graia.ariadne.message.element import Image
 from graia.ariadne.event.lifecycle import AccountLaunch
 from graia.ariadne.model import Friend, Group
+from requests.exceptions import SSLError
 from loguru import logger
 
 import re
 import asyncio
 import chatbot
 from config import Config
-from text_to_img import text_to_image
+from utils.text_to_img import to_image
 
 config = Config.load_config()
 # Refer to https://graia.readthedocs.io/ariadne/quickstart/
@@ -52,13 +48,13 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
 
     timeout_task = None
 
-    session = chatbot.get_chat_session(session_id)
+    session, is_new_session = chatbot.get_chat_session(session_id)
 
     # 回滚
     if message.strip() in config.trigger.rollback_command:
         resp = session.rollback_conversation()
         if resp:
-            return config.response.rollback_success + '\n' + resp
+            return config.response.rollback_success
         return config.response.rollback_fail
 
     # 队列满时拒绝新的消息
@@ -83,19 +79,21 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
                 session.reset_conversation()
                 return config.response.reset
 
-            # # 新会话
-            # if is_new_session:
-            #     await chatbot.initial_process(session)
-
             # 加载关键词人设
             preset_search = re.search(config.presets.command, message)
             if preset_search:
+                session.reset_conversation()
                 async for progress in session.load_conversation(preset_search.group(1)):
                     if not silence:
                         await app.send_message(target, progress, quote=source if config.response.quote else False)
                     else:
                         logger.debug(f"{message} -> {progress}")
                 return config.presets.loaded_successful
+            elif is_new_session:
+                # 新会话
+                async for progress in session.load_conversation():
+                    await app.send_message(target, progress, quote=source if config.response.quote else False)
+
             # 正常交流
             resp = await session.get_chat_response(message)
             if resp:
@@ -107,17 +105,17 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
         except Exception as e:
             # Other un-handled exceptions
             if 'Too many requests' in str(e):
-                return config.response.error_request_too_many
+                return config.response.error_request_too_many.format(exc=e)
             elif 'overloaded' in str(e):
-                return config.response.error_server_overloaded
+                return config.response.error_server_overloaded.format(exc=e)
             elif 'Unauthorized' in str(e):
-                return config.response.error_session_authenciate_failed
+                return config.response.error_session_authenciate_failed.format(exc=e)
             logger.exception(e)
             return config.response.error_format.format(exc=e)
         finally:
             if timeout_task:
                 timeout_task.cancel()
-    ### 排队结束
+    # 排队结束
 
 
 @app.broadcast.receiver("FriendMessage")
@@ -126,7 +124,10 @@ async def friend_message_listener(app: Ariadne, friend: Friend, source: Source,
     if friend.id == config.mirai.qq:
         return
     response = await handle_message(friend, f"friend-{friend.id}", chain.display, source)
-    await app.send_message(friend, response, quote=source if config.response.quote else False)
+    if config.text_to_image.always:
+        await app.send_message(friend, to_image(response), quote=source if config.response.quote else False)
+    else:
+        await app.send_message(friend, response, quote=source if config.response.quote else False)
 
 
 GroupTrigger = Annotated[MessageChain, MentionMe(config.trigger.require_mention != "at"), DetectPrefix(
@@ -137,12 +138,13 @@ GroupTrigger = Annotated[MessageChain, MentionMe(config.trigger.require_mention 
 @app.broadcast.receiver("GroupMessage")
 async def group_message_listener(group: Group, source: Source, chain: GroupTrigger):
     response = await handle_message(group, f"group-{group.id}", chain.display, source)
-    event = await app.send_message(group, response, quote=source if config.response.quote else False)
-    if event.source.id < 0:
-        img = text_to_image(text=response)
-        b = BytesIO()
-        img.save(b, format="png")
-        await app.send_message(group, Image(data_bytes=b.getvalue()), quote=source if config.response.quote else False)
+    if config.text_to_image.always:
+        await app.send_message(group, to_image(response), quote=source if config.response.quote else False)
+    else:
+        event = await app.send_message(group, response, quote=source if config.response.quote else False)
+        if event.source.id < 0:
+            await app.send_message(group, to_image(response),
+                                   quote=source if config.response.quote else False)
 
 
 @app.broadcast.receiver("NewFriendRequestEvent")
@@ -158,7 +160,7 @@ async def on_friend_request(event: BotInvitedJoinGroupRequestEvent):
 
 
 @app.broadcast.receiver(AccountLaunch)
-async def start_background(loop: asyncio.AbstractEventLoop):
+async def start_background():
     try:
         logger.info("OpenAI 服务器登录中……")
         chatbot.setup()
