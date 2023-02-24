@@ -93,7 +93,7 @@ async def handle_message(target: Union[Friend, Group], session_id: str, message:
                 # 新会话
                 async for progress in session.load_conversation():
                     if not silence:
-                        await app.send_message(target, progress, quote=source if config.response.quote else False)
+                        pass
                     else:
                         logger.debug(f"{message} -> {progress}")
 
