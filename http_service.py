@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import sys
+from collections import deque
 
 import simple_http_server.server as server
 from loguru import logger
@@ -15,13 +16,20 @@ from config import Config
 sys.path.append(os.getcwd())
 
 config = Config.load_config()
+processed_messages = deque(maxlen=100)
 
 
 @request_map("/v1/chatgpt/ask/{session_id}", method=["post"])
-async def chatgpt_ask(data=JSONBody(), session_id=PathValue()):
-    ##
-    #  JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-    response = await handle_message(session_id=session_id, message=data['message'], silence=True, target=None, source=None)
+async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    message = session_id + "[" + time + "]: " + data['message']
+    print(message)
+    if message in processed_messages:
+        response = "skip"
+    else:
+        ##
+        #  JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
+        response = await handle_message(session_id=session_id, message=data['message'], silence=True, target=None, source=None)
+        processed_messages.append(message)
     return {"success": response}
 
 
