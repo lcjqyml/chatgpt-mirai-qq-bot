@@ -365,7 +365,7 @@ loaded_successful = "预设加载成功！"
 ### HTTP服务支持
 启动时，环境变量包含`RUNNING_MODE=http`，则不会连接qq，只会在登录OpenAI后，启动服务并监听8080端口，服务提供接口：
 ```
-POST /v1/chatgpt/ask/{session_id}
+POST /v1/chatgpt/ask/{session_id}?time=20230302170501
 ``` 
 请求body接受json，如下：
 ```json
