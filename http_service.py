@@ -21,6 +21,8 @@ processed_messages = deque(maxlen=100)
 
 @request_map("/v1/chatgpt/ask/{session_id}", method=["post"])
 async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    if data['message'] == "ping":
+        return {"success": "pong!"}
     message = session_id + "[" + time + "]: " + data['message']
     print(message)
     if message in processed_messages:
