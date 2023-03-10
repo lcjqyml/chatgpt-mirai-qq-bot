@@ -9,12 +9,12 @@ import toml
 
 
 class OpenAIAuths(BaseModel):
-    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]
+    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]
 
 
 class OpenAIAuthBase(BaseModel):
-    mode: str = "browserless"
-    """OpenAI 的登录模式，可选的值：browserless - 无浏览器登录 browser - 浏览器登录"""
+    api_version: str
+    """调用revChatGPT哪个API版本"""
     proxy: Union[str, None] = None
     """可选的代理地址"""
     driver_exec_path: Union[str, None] = None
@@ -25,12 +25,19 @@ class OpenAIAuthBase(BaseModel):
     """初始化对话所使用的UUID"""
     paid: bool = False
     """使用 ChatGPT Plus"""
+    chat_model: str = "gpt-3.5-turbo"
+    """chat调用的OpenAI模型"""
+    temperature: float = 0.7
+    """机器人情感值，范围  0 ~ 1，越高话越多"""
     verbose: bool = False
     """启用详尽日志模式"""
     title_pattern: str = ""
     """自动修改标题，为空则不修改"""
     auto_remove_old_conversations: bool = False
     """自动删除旧的对话"""
+    system_prompt: str = "You're an AI assistant communicating in Chinese. Answer questions as succinctly as " \
+                         "possible. Your knowledge deadline is 2021-9 and your current date is {current_date} "
+    """系统默认信息"""
 
     class Config(BaseConfig):
         extra = Extra.allow
@@ -132,7 +139,7 @@ class System(BaseModel):
 
 
 class Config(BaseModel):
-    openai: Union[OpenAIAuths, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]
+    openai: Union[OpenAIAuths, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]
     trigger: Trigger = Trigger()
     response: Response = Response()
     system: System = System()

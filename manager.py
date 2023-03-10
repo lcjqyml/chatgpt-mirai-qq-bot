@@ -4,6 +4,7 @@ import itertools
 import os
 import sys
 import time
+from datetime import datetime
 from typing import Union, List
 
 import OpenAIAuth
@@ -11,11 +12,12 @@ import urllib3.exceptions
 from loguru import logger
 from requests.exceptions import SSLError
 from revChatGPT.V1 import Chatbot as V1Chatbot, Error as V1Error
+from revChatGPT.V3 import Chatbot as V3Chatbot
 from tinydb import TinyDB, Query
 
 import utils.network as network
 from config import Config
-from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth
+from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey
 
 sys.path.append(os.getcwd())
 
@@ -27,9 +29,9 @@ class BotInfo(asyncio.Lock):
 
     account: OpenAIAuthBase
 
-    bot: Union[V1Chatbot]
+    bot: Union[V1Chatbot, V3Chatbot]
 
-    mode: str
+    api_version: str
 
     queue_size: int = 0
 
@@ -41,24 +43,18 @@ class BotInfo(asyncio.Lock):
     lastFailure = None
     """Date when bot encounter an error last time"""
 
-    def __init__(self, bot, mode):
+    def reset(self, convo_id: str):
+        if isinstance(self.bot, V1Chatbot):
+            if convo_id is not None:
+                self.bot.delete_conversation(convo_id)
+        elif isinstance(self.bot, V3Chatbot):
+            system_prompt = self.account.system_prompt.format(current_date=datetime.now().strftime('%Y-%m-%d'))
+            self.bot.reset(convo_id=convo_id, system_prompt=system_prompt)
+
+    def __init__(self, bot, api_version):
         self.bot = bot
-        self.mode = mode
+        self.api_version = api_version
         super().__init__()
-
-    """向 ChatGPT 发送提问"""
-
-    def ask(self, prompt, conversation_id=None, parent_id=None):
-        resp = self.bot.ask(prompt=prompt, conversation_id=conversation_id, parent_id=parent_id)
-        if self.mode == 'proxy' or self.mode == 'browserless':
-            final_resp = None
-            for final_resp in resp:
-                pass
-            if final_resp is None:
-                raise Exception("OpenAI 在返回结果时出现了错误")
-            return final_resp
-        else:
-            return resp
 
     def __str__(self) -> str:
         return self.bot.__str__()
@@ -74,16 +70,18 @@ class BotInfo(asyncio.Lock):
 
 class BotManager:
     """Bot lifecycle manager."""
-
     bots: List[BotInfo] = []
+    v1bots: List[BotInfo] = []
+    v2bots: List[BotInfo] = []
+    v3bots: List[BotInfo] = []
     """Bot list"""
 
-    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]
+    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]
     """Account infos"""
 
     roundrobin: itertools.cycle = None
 
-    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]) -> None:
+    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]) -> None:
         self.accounts = accounts
         try:
             os.mkdir('data')
@@ -97,12 +95,18 @@ class BotManager:
         for i, account in enumerate(self.accounts):
             logger.info("正在登录第 {i} 个 OpenAI 账号", i=i + 1)
             try:
-                if account.mode == "proxy" or account.mode == "browserless":
-                    bot = self.__login_V1(account)
+                if account.api_version == "V1":
+                    bot = self.__login_v1(account)
+                    bot.id = i
+                    bot.account = account
+                    self.v1bots.append(bot)
+                if account.api_version == "V3":
+                    bot = self.__login_v3(account)
+                    bot.id = i
+                    bot.account = account
+                    self.v3bots.append(bot)
                 else:
-                    raise Exception("未定义的登录类型：" + account.mode)
-                bot.id = i
-                bot.account = account
+                    raise Exception("未定义的登录接口版本：" + account.api_version)
                 self.bots.append(bot)
                 logger.success("登录成功！", i=i + 1)
                 logger.debug("等待 8 秒……")
@@ -138,20 +142,12 @@ class BotManager:
         cache = self.cache_db.get(q.account == account_sha)
         return cache['cache'] if cache is not None else dict()
 
-    def __login_V1(self, account: OpenAIAuthBase) -> BotInfo:
-        logger.info("模式：无浏览器登录")
+    def __login_v1(self, account: OpenAIAuthBase) -> BotInfo:
         cached_account = dict(self.__load_login_cache(account), **account.dict())
-        config = dict()
-        if account.proxy is not None:
-            logger.info(f"正在检查代理配置：{account.proxy}")
-            from urllib.parse import urlparse
-            proxy_addr = urlparse(account.proxy)
-            if not network.is_open(proxy_addr.hostname, proxy_addr.port):
-                raise Exception("failed to connect to the proxy server")
-            config['proxy'] = account.proxy
+        login_config = self.__check_proxy_config(account)
 
         # 我承认这部分代码有点蠢
-        def __V1_check_auth(bot) -> bool:
+        def __v1_check_auth(bot) -> bool:
             try:
                 bot.get_conversations(0, 1)
                 return True
@@ -163,41 +159,82 @@ class BotManager:
 
         if 'access_token' in cached_account:
             logger.info("尝试使用 access_token 登录中...")
-            config['access_token'] = cached_account['access_token']
-            bot = V1Chatbot(config=config)
-            if __V1_check_auth(bot):
-                return BotInfo(bot, account.mode)
+            login_config['access_token'] = cached_account['access_token']
+            bot = V1Chatbot(config=login_config)
+            if __v1_check_auth(bot):
+                return BotInfo(bot, account.api_version)
 
         if 'session_token' in cached_account:
             logger.info("尝试使用 session_token 登录中...")
-            config.pop('access_token', None)
-            config['session_token'] = cached_account['session_token']
-            bot = V1Chatbot(config=config)
+            login_config.pop('access_token', None)
+            login_config['session_token'] = cached_account['session_token']
+            bot = V1Chatbot(config=login_config)
             self.__save_login_cache(account=account, cache={
-                "session_token": config['session_token'],
+                "session_token": login_config['session_token'],
                 "access_token": get_access_token(bot),
             })
-            if __V1_check_auth(bot):
-                return BotInfo(bot, account.mode)
+            if __v1_check_auth(bot):
+                return BotInfo(bot, account.api_version)
 
         if 'password' in cached_account:
             logger.info("尝试使用 email + password 登录中...")
-            config.pop('access_token', None)
-            config.pop('session_token', None)
-            config['email'] = cached_account['email']
-            config['password'] = cached_account['password']
-            bot = V1Chatbot(config=config)
+            login_config.pop('access_token', None)
+            login_config.pop('session_token', None)
+            login_config['email'] = cached_account['email']
+            login_config['password'] = cached_account['password']
+            bot = V1Chatbot(config=login_config)
             self.__save_login_cache(account=account, cache={
                 "session_token": bot.config['session_token'],
                 "access_token": get_access_token(bot)
             })
-            if __V1_check_auth(bot):
-                return BotInfo(bot, account.mode)
+            if __v1_check_auth(bot):
+                return BotInfo(bot, account.api_version)
         # Invalidate cache
         self.__save_login_cache(account=account, cache={})
         raise Exception("All login method failed")
 
-    def pick(self) -> BotInfo:
-        if self.roundrobin is None:
+    def __login_v3(self, account: OpenAIAuthBase) -> BotInfo:
+        cached_account = dict(self.__load_login_cache(account), **account.dict())
+        login_config = self.__check_proxy_config(account)
+
+        def __v3_check_auth(bot) -> bool:
+            try:
+                bot.ask("ping")
+                return True
+            except KeyError as e:
+                return False
+
+        if 'api_key' in cached_account:
+            bot = V3Chatbot(api_key=cached_account['api_key'],
+                            proxy=login_config.get('proxy', None),
+                            engine=cached_account['chat_model'],
+                            temperature=cached_account['temperature'],
+                            system_prompt=cached_account['system_prompt'])
+            if __v3_check_auth(bot):
+                return BotInfo(bot, account.api_version)
+        # Invalidate cache
+        self.__save_login_cache(account=account, cache={})
+        raise Exception("All login method failed")
+
+    @staticmethod
+    def __check_proxy_config(account: OpenAIAuthBase) -> dict:
+        login_config = dict()
+        if account.proxy is not None:
+            logger.info(f"正在检查代理配置：{account.proxy}")
+            from urllib.parse import urlparse
+            proxy_addr = urlparse(account.proxy)
+            if not network.is_open(proxy_addr.hostname, proxy_addr.port):
+                raise Exception("failed to connect to the proxy server")
+            login_config['proxy'] = account.proxy
+        return login_config
+
+    def pick(self, api_version) -> BotInfo:
+        if api_version == "V1":
+            self.roundrobin = itertools.cycle(self.v1bots)
+        elif api_version == "V2":
+            self.roundrobin = itertools.cycle(self.v2bots)
+        elif api_version == "V3":
+            self.roundrobin = itertools.cycle(self.v3bots)
+        else:
             self.roundrobin = itertools.cycle(self.bots)
         return next(self.roundrobin)

@@ -1,4 +1,4 @@
-revChatGPT==3.2.0
+revChatGPT==3.3.1
 toml~=0.10.2
 Pillow>=9.3.0
 tinydb~=4.7.1

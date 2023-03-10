@@ -12,11 +12,11 @@ sys.path.append(os.getcwd())
 config = Config.load_config()
 
 
-async def handle_message(session_id: str, message: str) -> str:
+async def handle_message(session_id: str, message: str, api_version: str = None) -> str:
     if not message.strip():
         return config.response.placeholder
 
-    session, is_new_session = chatbot.get_chat_session(session_id)
+    session, is_new_session = chatbot.get_chat_session(session_id, api_version)
 
     # 回滚
     if message.strip() in config.trigger.rollback_command:
@@ -39,7 +39,7 @@ async def handle_message(session_id: str, message: str) -> str:
             # 正常交流
             resp = await session.get_chat_response(message)
             if resp:
-                logger.debug(f"{session_id} - {session.chatbot.id} {resp}")
+                logger.debug(f"API[{session.api_version}] - {session_id} - {session.chatbot.id} {resp}")
                 return resp.strip()
         except SSLError as e:
             logger.exception(e)

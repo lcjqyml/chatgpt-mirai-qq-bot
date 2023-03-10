@@ -21,16 +21,29 @@ processed_messages = deque(maxlen=100)
 
 @request_map("/v1/chatgpt/ask/{session_id}", method=["post"])
 async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, session_id=session_id, time=time, api_version="V1")
+
+
+@request_map("/v3/chatgpt/ask/{session_id}", method=["post"])
+async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, session_id=session_id, time=time, api_version="V3")
+
+
+@request_map("/v_/chatgpt/ask/{session_id}", method=["post"])
+async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, session_id=session_id, time=time, api_version=None)
+
+
+async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str = None):
     if data['message'] == "ping":
         return {"success": "pong!"}
     message = session_id + "[" + time + "]: " + data['message']
-    print(message)
+    print("API[" + api_version + "]: " + message)
     if message in processed_messages:
         response = "skip"
     else:
-        ##
-        #  JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response = await handle_message(session_id=session_id, message=data['message'])
+        # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
+        response = await handle_message(session_id=session_id, message=data['message'], api_version=api_version)
         processed_messages.append(message)
     return {"success": response}
 
