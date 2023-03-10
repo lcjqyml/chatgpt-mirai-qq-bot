@@ -8,17 +8,6 @@ import sys
 import toml
 
 
-class Mirai(BaseModel):
-    qq: int
-    """Bot 的 QQ 号"""
-    api_key: str
-    """mirai-api-http 的 verifyKey"""
-    http_url: str = "http://localhost:8080"
-    """mirai-api-http 的 http 适配器地址"""
-    ws_url: str = "http://localhost:8080"
-    """mirai-api-http 的 ws 适配器地址"""
-
-
 class OpenAIAuths(BaseModel):
     accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]
 
@@ -69,21 +58,6 @@ class OpenAIAccessTokenAuth(OpenAIAuthBase):
 class OpenAIAPIKey(OpenAIAuthBase):
     api_key: str
     """OpenAI 的 api_key"""
-
-
-class TextToImage(BaseModel):
-    always: bool = False
-    """持续开启，设置后所有的文字均以图片方式发送"""
-    font_size: int = 30
-    """字号"""
-    width: int = 700
-    """生成图片宽度"""
-    font_path: str = "fonts/sarasa-mono-sc-regular.ttf"
-    """字体路径"""
-    offset_x: int = 50
-    """横坐标"""
-    offset_y: int = 50
-    """纵坐标"""
 
 
 class Trigger(BaseModel):
@@ -157,56 +131,11 @@ class System(BaseModel):
     """自动接收好友请求"""
 
 
-class Preset(BaseModel):
-    command: str = r"加载预设 (\w+)"
-    keywords: dict[str, str] = dict()
-    loaded_successful: str = "预设加载成功！"
-    scan_dir: str = "./presets"
-
-
 class Config(BaseModel):
-    mirai: Mirai
     openai: Union[OpenAIAuths, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]
-    text_to_image: TextToImage = TextToImage()
     trigger: Trigger = Trigger()
     response: Response = Response()
     system: System = System()
-    presets: Preset = Preset()
-
-    def scan_presets(self):
-        for keyword, path in self.presets.keywords.items():
-            if os.path.isfile(path):
-                logger.success(f"检查预设：{keyword} <==> {path} [成功]")
-            else:
-                logger.error(f"检查预设：{keyword} <==> {path} [失败：文件不存在]")
-        for root, _, files in os.walk(self.presets.scan_dir, topdown=False):
-            for name in files:
-                if not name.endswith(".txt"):
-                    continue
-                path = os.path.join(root, name)
-                name = name.removesuffix('.txt')
-                if name in self.presets.keywords:
-                    logger.error(f"注册预设：{name} <==> {path} [失败：关键词已存在]")
-                    continue
-                self.presets.keywords[name] = path
-                logger.success(f"注册预设：{name} <==> {path} [成功]")
-
-    def load_preset(self, keyword):
-        try:
-            with open(self.presets.keywords[keyword], "rb") as f:
-                guessed_str = from_bytes(f.read()).best()
-                if not guessed_str:
-                    raise ValueError("无法识别预设的 JSON 格式，请检查编码！")
-
-                return str(guessed_str).replace('<|im_end|>', '').replace('\r', '').split('\n\n')
-        except KeyError:
-            raise ValueError("预设不存在！")
-        except FileNotFoundError:
-            raise ValueError("预设文件不存在！")
-        except Exception as e:
-            logger.exception(e)
-            logger.error("配置文件有误，请重新修改！")
-
     OpenAIAuths.update_forward_refs()
 
     @staticmethod
@@ -248,7 +177,7 @@ class Config(BaseModel):
             exit(-1)
 
     @staticmethod
-    def save_config(config: Config) -> Config:
+    def save_config(config: Config):
         try:
             with open("config.cfg", "wb") as f:
                 parsed_str = toml.dumps(config.dict()).encode(sys.getdefaultencoding())

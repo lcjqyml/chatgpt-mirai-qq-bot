@@ -30,7 +30,7 @@ async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
     else:
         ##
         #  JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response = await handle_message(session_id=session_id, message=data['message'], silence=True, target=None, source=None)
+        response = await handle_message(session_id=session_id, message=data['message'])
         processed_messages.append(message)
     return {"success": response}
 

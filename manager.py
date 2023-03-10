@@ -1,25 +1,23 @@
+import asyncio
+import hashlib
+import itertools
 import os
 import sys
 import time
-
-from requests.exceptions import SSLError
-
-sys.path.append(os.getcwd())
-
-import asyncio
-import itertools
 from typing import Union, List
-import os
-from revChatGPT.V1 import Chatbot as V1Chatbot, Error as V1Error
-from revChatGPT.Unofficial import Chatbot as BrowserChatbot
-from loguru import logger
-from config import Config
-from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth
+
 import OpenAIAuth
 import urllib3.exceptions
-import utils.network as network
+from loguru import logger
+from requests.exceptions import SSLError
+from revChatGPT.V1 import Chatbot as V1Chatbot, Error as V1Error
 from tinydb import TinyDB, Query
-import hashlib
+
+import utils.network as network
+from config import Config
+from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth
+
+sys.path.append(os.getcwd())
 
 config = Config.load_config()
 
@@ -29,7 +27,7 @@ class BotInfo(asyncio.Lock):
 
     account: OpenAIAuthBase
 
-    bot: Union[V1Chatbot, BrowserChatbot]
+    bot: Union[V1Chatbot]
 
     mode: str
 
@@ -47,22 +45,6 @@ class BotInfo(asyncio.Lock):
         self.bot = bot
         self.mode = mode
         super().__init__()
-
-    """更新预设对话池"""
-
-    def update_conversation_pools(self):
-        for key in config.presets.keywords.keys():
-            if key not in self.unused_conversations_pools:
-                self.unused_conversations_pools = []
-            preset = config.load_preset(preset)
-            self.bot.parent_id = None
-            self.bot.conversation_id = None
-            for text in preset:
-                if text.startswith('ChatGPT:'):
-                    pass
-                if text.startswith('User:'):
-                    text = text.replace('User:', '')
-                self.ask(text)
 
     """向 ChatGPT 发送提问"""
 
@@ -96,12 +78,12 @@ class BotManager:
     bots: List[BotInfo] = []
     """Bot list"""
 
-    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth]]
+    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]
     """Account infos"""
 
     roundrobin: itertools.cycle = None
 
-    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth]]) -> None:
+    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth]]) -> None:
         self.accounts = accounts
         try:
             os.mkdir('data')
@@ -117,8 +99,6 @@ class BotManager:
             try:
                 if account.mode == "proxy" or account.mode == "browserless":
                     bot = self.__login_V1(account)
-                elif account.mode == "browser":
-                    bot = self.__login_browser(account)
                 else:
                     raise Exception("未定义的登录类型：" + account.mode)
                 bot.id = i
@@ -144,19 +124,6 @@ class BotManager:
             logger.error("所有账号均登录失败，无法继续启动！")
             exit(-2)
         logger.success(f"成功登录 {len(self.bots)}/{len(self.accounts)} 个账号！")
-
-    def __login_browser(self, account) -> BotInfo:
-        logger.info("模式：浏览器登录")
-        logger.info("这需要你拥有最新版的 Chrome 浏览器。")
-        logger.info("即将打开浏览器窗口……")
-        logger.info("提示：如果你看见了 Cloudflare 验证码，请手动完成验证。")
-        logger.info("如果你持续停留在 Found session token 环节，请使用无浏览器登录模式。")
-        if 'XPRA_PASSWORD' in os.environ:
-            logger.info(
-                "检测到您正在使用 xpra 虚拟显示环境，请使用你自己的浏览器访问 http://你的IP:14500，密码：{XPRA_PASSWORD}以看见浏览器。",
-                XPRA_PASSWORD=os.environ.get('XPRA_PASSWORD'))
-        bot = BrowserChatbot(config=account.dict(exclude_none=True, by_alias=False))
-        return BotInfo(bot, account.mode)
 
     def __save_login_cache(self, account: OpenAIAuthBase, cache: dict):
         """保存登录缓存"""

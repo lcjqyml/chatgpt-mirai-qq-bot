@@ -15,7 +15,6 @@ else:
 
 def setup():
     botManager.login()
-    config.scan_presets()
 
 
 class ChatSession:
@@ -29,23 +28,6 @@ class ChatSession:
         self.parent_id = None
         self.conversation_id = None
         self.chatbot = botManager.pick()
-
-    async def load_conversation(self, keyword='default'):
-        if keyword not in config.presets.keywords:
-            if keyword == 'default':
-                pass
-            raise ValueError("预设不存在，请检查你的输入是否有问题！")
-        else:
-            presets = config.load_preset(keyword)
-            for text in presets:
-                if text.startswith('#'):
-                    continue
-                elif text.startswith('ChatGPT:'):
-                    yield text.split('ChatGPT:')[-1].strip()
-                elif text.startswith('User:'):
-                    await self.get_chat_response(text.split('User:')[-1].strip())
-                else:
-                    await self.get_chat_response(text.split('User:')[-1].strip())
 
     def reset_conversation(self):
         if self.chatbot and \
