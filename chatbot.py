@@ -29,7 +29,7 @@ class ChatSession:
         self.prev_parent_id = []
         self.parent_id = None
         self.conversation_id = None
-        self.api_version = api_version
+        self.api_version = api_version if api_version else "_"
         self.reset_conversation()
 
     def is_v1_api(self) -> bool:

@@ -100,15 +100,16 @@ class BotManager:
                     bot.id = i
                     bot.account = account
                     self.v1bots.append(bot)
+                    logger.success("V1账号登录成功！")
                 if account.api_version == "V3":
                     bot = self.__login_v3(account)
                     bot.id = i
                     bot.account = account
                     self.v3bots.append(bot)
+                    logger.success("V3账号登录成功！")
                 else:
                     raise Exception("未定义的登录接口版本：" + account.api_version)
                 self.bots.append(bot)
-                logger.success("登录成功！", i=i + 1)
                 logger.debug("等待 8 秒……")
                 time.sleep(8)
             except OpenAIAuth.Error as e:

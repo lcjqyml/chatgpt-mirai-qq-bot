@@ -38,7 +38,7 @@ async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str
     if data['message'] == "ping":
         return {"success": "pong!"}
     message = session_id + "[" + time + "]: " + data['message']
-    print("API[" + api_version + "]: " + message)
+    print("API[" + api_version if api_version else "_" + "]: " + message)
     if message in processed_messages:
         response = "skip"
     else:
