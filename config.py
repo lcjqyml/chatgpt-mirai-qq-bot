@@ -121,7 +121,8 @@ class Response(BaseModel):
     ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}"
     """v1接口ping返回值模板"""
 
-    ping_v3 = ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
+    ping_v3 = ping_v1 + "\n交互模式：{interactive_mode}\napi模型：{api_model}\n消耗的token数量：{current_token_count}/{" \
+                        "max_token_count}"
     """v3接口ping返回值模板"""
 
     rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"

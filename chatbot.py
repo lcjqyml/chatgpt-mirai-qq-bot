@@ -37,22 +37,6 @@ class ChatSession:
         self.api_version = api_version if api_version else "_"
         self.reset_conversation()
 
-    def get_status(self) -> str:
-        """获取session状态"""
-        last_operation_time_str = self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") if self.last_operation_time \
-            else "无"
-        if self.is_v1_api():
-            # {session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}
-            return config.response.ping_v1.format(session_id=self.session_id, api_version=self.api_version,
-                                                  last_operation_time=last_operation_time_str)
-        elif self.is_v3_api():
-            # ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
-            return config.response.ping_v3.format(session_id=self.session_id, api_version=self.api_version,
-                                                  last_operation_time=last_operation_time_str,
-                                                  api_model=self.chatbot.bot.engine,
-                                                  current_token_count=self.chatbot.bot.get_token_count(self.session_id),
-                                                  max_token_count=self.chatbot.bot.get_max_tokens(self.session_id))
-
     def is_chat_mode(self) -> bool:
         return self.interactive_mode == InteractiveMode.CHAT
 
@@ -67,6 +51,22 @@ class ChatSession:
 
     def is_v3_api(self) -> bool:
         return self.api_version == "V3"
+
+    def get_status(self) -> str:
+        """获取session状态"""
+        last_operation_time_str = self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") if self.last_operation_time \
+            else "无"
+        if self.is_v1_api():
+            return config.response.ping_v1.format(session_id=self.session_id, api_version=self.api_version,
+                                                  last_operation_time=last_operation_time_str)
+        elif self.is_v3_api():
+            interactive_mode_str = self.interactive_mode.description()
+            return config.response.ping_v3.format(session_id=self.session_id, api_version=self.api_version,
+                                                  last_operation_time=last_operation_time_str,
+                                                  interactive_mode=interactive_mode_str,
+                                                  api_model=self.chatbot.bot.engine,
+                                                  current_token_count=self.chatbot.bot.get_token_count(self.session_id),
+                                                  max_token_count=self.chatbot.bot.max_tokens)
 
     def reset_conversation(self, interactive_mode: InteractiveMode = None):
         """重置会话"""

@@ -18,6 +18,7 @@ from tinydb import TinyDB, Query
 import utils.network as network
 from config import Config
 from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey
+from pojo.Constants import Constants
 
 sys.path.append(os.getcwd())
 
@@ -213,7 +214,8 @@ class BotManager:
                             proxy=login_config.get('proxy', None),
                             engine=cached_account['chat_model'],
                             temperature=cached_account['temperature'],
-                            system_prompt=cached_account['system_prompt'])
+                            system_prompt=cached_account['system_prompt'],
+                            max_tokens=Constants.MAX_TOKENS.value)
             if __v3_check_auth(bot):
                 return BotInfo(bot, account.api_version)
         # Invalidate cache
