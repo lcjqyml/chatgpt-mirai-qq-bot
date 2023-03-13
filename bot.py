@@ -6,6 +6,7 @@ from requests.exceptions import SSLError
 
 import chatbot
 from config import Config
+from pojo.Constants import InteractiveMode
 
 sys.path.append(os.getcwd())
 
@@ -16,7 +17,11 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
     if not message.strip():
         return config.response.placeholder
 
-    session, is_new_session = chatbot.get_chat_session(session_id, api_version)
+    session = chatbot.get_chat_session(session_id, api_version)
+
+    # ping
+    if message.strip() in config.trigger.ping_command:
+        return session.get_status()
 
     # 回滚
     if message.strip() in config.trigger.rollback_command:
@@ -35,11 +40,25 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             # 重置会话
             if message.strip() in config.trigger.reset_command:
                 session.reset_conversation()
-                return config.response.reset
+                if session.is_chat_mode():
+                    return config.response.reset_chat
+                elif session.is_qa_mode():
+                    return config.response.reset_qa
+                else:
+                    return config.response.reset
+            # 聊天模式
+            if message.strip() in config.trigger.chat_command:
+                session.reset_conversation(interactive_mode=InteractiveMode.CHAT)
+                return config.response.reset_chat
+            # qa模式
+            if message.strip() in config.trigger.chat_command:
+                session.reset_conversation(interactive_mode=InteractiveMode.Q_A)
+                return config.response.reset_qa
             # 正常交流
             resp = await session.get_chat_response(message)
+            interactive_mode_info = session.interactive_mode if "[" + session.interactive_mode.value + "]: " else ""
             if resp:
-                logger.debug(f"API[{session.api_version}] - {session_id} - {session.chatbot.id} {resp}")
+                logger.debug(f"API[{session.api_version}] - {interactive_mode_info}{session_id} - {resp}")
                 return resp.strip()
         except SSLError as e:
             logger.exception(e)

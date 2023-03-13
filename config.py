@@ -38,6 +38,8 @@ class OpenAIAuthBase(BaseModel):
     system_prompt: str = "You're an AI assistant communicating in Chinese. Answer questions as succinctly as " \
                          "possible. Your knowledge deadline is 2021-9 and your current date is {current_date} "
     """系统默认信息"""
+    default_interactive_mode: str = "chat"
+    """默认交互模式：chat 聊天，q&a 问答"""
 
     class Config(BaseConfig):
         extra = Extra.allow
@@ -63,6 +65,8 @@ class OpenAIAccessTokenAuth(OpenAIAuthBase):
 
 
 class OpenAIAPIKey(OpenAIAuthBase):
+    default_interactive_mode: str = "q&a"
+    """默认交互模式：chat 聊天，q&a 问答"""
     api_key: str
     """OpenAI 的 api_key"""
 
@@ -76,6 +80,12 @@ class Trigger(BaseModel):
     """重置会话的命令"""
     rollback_command: List[str] = ["回滚会话"]
     """回滚会话的命令"""
+    qa_command: List[str] = ["问答模式", "重置问答会话"]
+    """问答模式的命令"""
+    chat_command: List[str] = ["聊天模式", "重置聊天会话"]
+    """聊天模式的命令"""
+    ping_command: List[str] = ["ping", "状态"]
+    """"""
 
 
 class Response(BaseModel):
@@ -101,6 +111,18 @@ class Response(BaseModel):
 
     reset = "会话已重置。"
     """重置会话时发送的消息"""
+
+    reset_chat = "会话已重置，当前为聊天模式，无交互2小时后自动重置（省钱）。"
+    """重置为聊天模式后发送的消息"""
+
+    reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
+    """重置为问答模式后发送的消息"""
+
+    ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}"
+    """v1接口ping返回值模板"""
+
+    ping_v3 = ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
+    """v3接口ping返回值模板"""
 
     rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"
     """成功回滚时发送的消息"""

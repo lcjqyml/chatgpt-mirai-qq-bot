@@ -36,6 +36,8 @@
 api_version = "V3"
 # 走付费api时使用的model
 chat_model = "gpt-3.5-turbo"
+# 默认的交互模式：chat 聊天，q&a 问答
+# default_interactive_mode = "q&a"
 # 你的 OpenAI 邮箱
 email = "xxxx" 
 # 你的 OpenAI 密码
@@ -127,6 +129,15 @@ reset_command = [ "重置会话",]
 # 回滚会话的命令
 rollback_command = [ "回滚会话",]
 
+# 问答模式的命令
+qa_command = [ "问答模式",]
+
+# 聊天模式的命令
+chat_command = [ "聊天模式",]
+
+# ping命令，用于检测服务状态，返回状态信息
+ping_command = ["ping", "状态"]
+
 [response]
 # 匹配指令成功但没有对话内容时发送的消息
 placeholder = "您好！我是 Assistant，一个由 OpenAI 训练的大型语言模型。我不是真正的人，而是一个计算机程序，可以通过文本聊天来帮助您解决问题。如果您有任何问题，请随时告诉我，我将尽力回答。\n如果您需要重置我们的会话，请回复`重置会话`。"
@@ -157,6 +168,18 @@ timeout_format = "我还在思考中，请再等一下~"
 
 # 重置会话时发送的消息
 reset = "会话已重置。"
+
+# 重置为聊天模式后发送的消息
+reset_chat = "会话已重置，当前为聊天模式，无交互2小时后自动重置（省钱）。"
+
+# 重置为问答模式后发送的消息
+reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
+
+# v1接口ping返回值模板
+ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}\n"
+
+# v3接口ping返回值模板
+ping_v3 = ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
 
 # 回滚成功时发送的消息
 rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"
@@ -212,8 +235,14 @@ accept_friend_request = false
 ### HTTP服务支持
 启动服务并监听8080端口，服务提供接口：
 ```
-POST /v1/chatgpt/ask/{session_id}?time=20230302170501
+# v1 免费接口，暂不可用
+POST /v1/chatgpt/ask/{session_id}?time={timestamp}
+# v3 官方API接口，目前访问gpt-3.5-turbo模型
+POST /v3/chatgpt/ask/{session_id}?time={timestamp}
+# 不指定接口，哪个可用用哪个
+POST /v_/chatgpt/ask/{session_id}?time={timestamp}
 ``` 
+
 请求body接受json，如下：
 ```json
 {
@@ -226,6 +255,11 @@ POST /v1/chatgpt/ask/{session_id}?time=20230302170501
   "success": "会话已重置。"
 }
 ```
+内置以下命令与规则：
+* ping，固定返回服务状态信息，用于检测服务是否健在；
+* 其他如重置会话、回滚会话，参考上面可配置项
+* session_id、time、message三个参数一致时，会直接返回skip，避免重复请求；
+
 #### 邮箱密码登录
 
 当你使用这种方式登录时，我们会自动打开一个浏览器页面完成 OpenAI 的登录。  

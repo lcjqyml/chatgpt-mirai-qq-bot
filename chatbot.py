@@ -1,10 +1,10 @@
-from typing import Tuple
 from config import Config, OpenAIAuths
 import asyncio
 from manager import BotManager, BotInfo
 import atexit
 from loguru import logger
 from datetime import datetime
+from pojo.Constants import InteractiveMode, Constants
 
 config = Config.load_config()
 if type(config.openai) is OpenAIAuths:
@@ -22,8 +22,11 @@ class ChatSession:
     chatbot: BotInfo = None
     session_id: str
     api_version: str = None
+    interactive_mode: InteractiveMode = None
+    default_interactive_mode: InteractiveMode = None
 
     def __init__(self, session_id, api_version: str = None):
+        self.last_operation_time = None
         self.session_id = session_id
         self.prev_conversation_id = []
         self.prev_parent_id = []
@@ -31,6 +34,28 @@ class ChatSession:
         self.conversation_id = None
         self.api_version = api_version if api_version else "_"
         self.reset_conversation()
+
+    """获取session状态"""
+    def get_status(self) -> str:
+        last_operation_time_str = self.last_operation_time if self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") \
+            else "无"
+        if self.is_v1_api():
+            # {session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}
+            return config.response.ping_v1.format(session_id=self.session_id, api_version=self.api_version,
+                                                  last_operation_time=last_operation_time_str)
+        elif self.is_v3_api():
+            # ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
+            return config.response.ping_v3.format(session_id=self.session_id, api_version=self.api_version,
+                                                  last_operation_time=last_operation_time_str,
+                                                  api_model=self.chatbot.bot.engine,
+                                                  current_token_count=self.chatbot.bot.get_token_count(self.session_id),
+                                                  max_token_count=self.chatbot.bot.get_max_tokens(self.session_id))
+
+    def is_chat_mode(self) -> bool:
+        return self.interactive_mode == InteractiveMode.CHAT
+
+    def is_qa_mode(self) -> bool:
+        return self.interactive_mode == InteractiveMode.Q_A
 
     def is_v1_api(self) -> bool:
         return self.api_version == "V1"
@@ -42,8 +67,10 @@ class ChatSession:
         return self.api_version == "V3"
 
     """重置会话"""
-    def reset_conversation(self):
+    def reset_conversation(self, interactive_mode: InteractiveMode = None):
         self.chatbot = botManager.pick(self.api_version)
+        self.default_interactive_mode = InteractiveMode.parse(mode_str=self.chatbot.account.default_interactive_mode)
+        self.last_operation_time = None
         if self.is_v1_api():
             self.chatbot.reset(self.conversation_id)
             self.conversation_id = None
@@ -51,6 +78,7 @@ class ChatSession:
             self.prev_conversation_id = []
             self.prev_parent_id = []
         elif self.is_v3_api():
+            self.interactive_mode = interactive_mode if interactive_mode else self.default_interactive_mode
             self.chatbot.reset(self.session_id)
 
     """向 revChatGPT.V1 发送提问"""
@@ -65,6 +93,8 @@ class ChatSession:
 
     """向 revChatGPT.V3 发送提问"""
     def v3_ask(self, prompt):
+        if self.is_qa_mode():
+            self.chatbot.bot.rollback(len(self.chatbot.bot.conversation[self.session_id]), convo_id=self.session_id)
         return self.chatbot.bot.ask(prompt=prompt, convo_id=self.session_id)
 
     """回滚会话"""
@@ -82,35 +112,48 @@ class ChatSession:
                 self.chatbot.bot.rollback(1, convo_id=self.session_id)
         return True
 
+    """会话超时就重置，重新发起"""
+    def check_and_reset_conversation(self):
+        if self.last_operation_time is None:
+            return
+        current_time = datetime.now()
+        time_diff = current_time - self.last_operation_time
+        if time_diff.total_seconds() > Constants.CHAT_TIMEOUT_SECONDS.value:
+            self.reset_conversation()
+
     async def get_chat_response(self, message) -> str:
-        loop = asyncio.get_event_loop()
-        if self.is_v1_api():
-            self.prev_conversation_id.append(self.conversation_id)
-            self.prev_parent_id.append(self.parent_id)
-            bot = self.chatbot.bot
-            bot.conversation_id = self.conversation_id
-            bot.parent_id = self.parent_id
-            resp = await loop.run_in_executor(None, self.v1_ask, message, self.conversation_id, self.parent_id)
-            self.conversation_id = resp["conversation_id"]
-            if self.conversation_id is None and self.chatbot.account.title_pattern:
-                self.chatbot.bot.change_title(self.conversation_id,
-                                              self.chatbot.account.title_pattern.format(session_id=self.session_id))
-            self.parent_id = resp["parent_id"]
-            return resp["message"]
-        elif self.is_v3_api():
-            resp = await loop.run_in_executor(None, self.v3_ask, message)
-            return resp
+        self.check_and_reset_conversation()
+        try:
+            loop = asyncio.get_event_loop()
+            if self.is_v1_api():
+                self.prev_conversation_id.append(self.conversation_id)
+                self.prev_parent_id.append(self.parent_id)
+                bot = self.chatbot.bot
+                bot.conversation_id = self.conversation_id
+                bot.parent_id = self.parent_id
+                resp = await loop.run_in_executor(None, self.v1_ask, message, self.conversation_id, self.parent_id)
+                self.conversation_id = resp["conversation_id"]
+                if self.conversation_id is None and self.chatbot.account.title_pattern:
+                    self.chatbot.bot.change_title(self.conversation_id,
+                                                  self.chatbot.account.title_pattern.format(session_id=self.session_id))
+                self.parent_id = resp["parent_id"]
+                return resp["message"]
+            elif self.is_v3_api():
+                resp = await loop.run_in_executor(None, self.v3_ask, message)
+                return resp
+        finally:
+            self.last_operation_time = datetime.now()
 
 
 __sessions = {}
 
 
-def get_chat_session(session_id: str, api_version: str = None) -> Tuple[ChatSession, bool]:
-    new_session = False
+def get_chat_session(session_id: str, api_version: str = None) -> ChatSession:
     if session_id not in __sessions:
         __sessions[session_id] = ChatSession(session_id, api_version)
-        new_session = True
-    return __sessions[session_id], new_session
+    session: ChatSession = __sessions[session_id]
+    session.check_and_reset_conversation()
+    return session
 
 
 def conversation_remover():

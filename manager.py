@@ -43,12 +43,15 @@ class BotInfo(asyncio.Lock):
     lastFailure = None
     """Date when bot encounter an error last time"""
 
-    def reset(self, convo_id: str):
+    def reset(self, convo_id: str, no_system_prompt: bool = False):
         if isinstance(self.bot, V1Chatbot):
             if convo_id is not None:
                 self.bot.delete_conversation(convo_id)
         elif isinstance(self.bot, V3Chatbot):
-            system_prompt = self.account.system_prompt.format(current_date=datetime.now().strftime('%Y-%m-%d'))
+            if no_system_prompt:
+                system_prompt = "."
+            else:
+                system_prompt = self.account.system_prompt.format(current_date=datetime.now().strftime('%Y-%m-%d'))
             self.bot.reset(convo_id=convo_id, system_prompt=system_prompt)
 
     def __init__(self, bot, api_version):

@@ -35,8 +35,6 @@ async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
 
 
 async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str = None):
-    if data['message'] == "ping":
-        return {"success": "pong!"}
     message = session_id + "[" + time + "]: " + data['message']
     print("API[" + api_version if api_version else "_" + "]: " + message)
     if message in processed_messages:
