@@ -1,9 +1,11 @@
-from config import Config, OpenAIAuths
 import asyncio
-from manager import BotManager, BotInfo
 import atexit
-from loguru import logger
 from datetime import datetime
+
+from loguru import logger
+
+from config import Config, OpenAIAuths
+from manager import BotManager, BotInfo
 from pojo.Constants import InteractiveMode, Constants
 
 config = Config.load_config()
@@ -35,9 +37,9 @@ class ChatSession:
         self.api_version = api_version if api_version else "_"
         self.reset_conversation()
 
-    """获取session状态"""
     def get_status(self) -> str:
-        last_operation_time_str = self.last_operation_time if self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") \
+        """获取session状态"""
+        last_operation_time_str = self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") if self.last_operation_time \
             else "无"
         if self.is_v1_api():
             # {session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}
@@ -66,8 +68,8 @@ class ChatSession:
     def is_v3_api(self) -> bool:
         return self.api_version == "V3"
 
-    """重置会话"""
     def reset_conversation(self, interactive_mode: InteractiveMode = None):
+        """重置会话"""
         self.chatbot = botManager.pick(self.api_version)
         self.default_interactive_mode = InteractiveMode.parse(mode_str=self.chatbot.account.default_interactive_mode)
         self.last_operation_time = None
@@ -81,8 +83,8 @@ class ChatSession:
             self.interactive_mode = interactive_mode if interactive_mode else self.default_interactive_mode
             self.chatbot.reset(self.session_id)
 
-    """向 revChatGPT.V1 发送提问"""
     def v1_ask(self, prompt, conversation_id=None, parent_id=None):
+        """向 revChatGPT.V1 发送提问"""
         resp = self.chatbot.bot.ask(prompt=prompt, conversation_id=conversation_id, parent_id=parent_id)
         final_resp = None
         for final_resp in resp:
@@ -91,14 +93,14 @@ class ChatSession:
             raise Exception("OpenAI 在返回结果时出现了错误")
         return final_resp
 
-    """向 revChatGPT.V3 发送提问"""
     def v3_ask(self, prompt):
+        """向 revChatGPT.V3 发送提问"""
         if self.is_qa_mode():
             self.chatbot.bot.rollback(len(self.chatbot.bot.conversation[self.session_id]), convo_id=self.session_id)
         return self.chatbot.bot.ask(prompt=prompt, convo_id=self.session_id)
 
-    """回滚会话"""
     def rollback_conversation(self) -> bool:
+        """回滚会话"""
         if self.is_v1_api():
             if len(self.prev_parent_id) <= 0:
                 return False
@@ -112,8 +114,8 @@ class ChatSession:
                 self.chatbot.bot.rollback(1, convo_id=self.session_id)
         return True
 
-    """会话超时就重置，重新发起"""
     def check_and_reset_conversation(self):
+        """会话超时就重置，重新发起"""
         if self.last_operation_time is None:
             return
         current_time = datetime.now()
