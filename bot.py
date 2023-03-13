@@ -51,7 +51,7 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
                 session.reset_conversation(interactive_mode=InteractiveMode.CHAT)
                 return config.response.reset_chat.format(system_prompt=session.get_system_prompt())
             # qa模式
-            if message.strip() in config.trigger.chat_command:
+            if message.strip() in config.trigger.qa_command:
                 session.reset_conversation(interactive_mode=InteractiveMode.Q_A)
                 return config.response.reset_qa
             # 正常交流
