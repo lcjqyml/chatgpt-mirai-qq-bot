@@ -112,7 +112,7 @@ class Response(BaseModel):
     reset = "会话已重置。"
     """重置会话时发送的消息"""
 
-    reset_chat = "会话已重置，当前为聊天模式，无交互2小时后自动重置（省钱）。"
+    reset_chat = "会话已重置，当前为聊天模式，无交互2小时后自动重置（省钱）。AI默认设定：{system_prompt}"
     """重置为聊天模式后发送的消息"""
 
     reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
@@ -121,8 +121,9 @@ class Response(BaseModel):
     ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}"
     """v1接口ping返回值模板"""
 
-    ping_v3 = ping_v1 + "\n交互模式：{interactive_mode}\napi模型：{api_model}\n消耗的token数量：{current_token_count}/{" \
-                        "max_token_count}"
+    ping_v3 = ping_v1 + "\n交互模式：{interactive_mode}\napi模型：{api_model}" \
+                        "\n消耗的token数量：{current_token_count}/{max_token_count}" \
+                        "\nAI默认设定：{system_prompt}"
     """v3接口ping返回值模板"""
 
     rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"

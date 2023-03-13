@@ -41,7 +41,7 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             if message.strip() in config.trigger.reset_command:
                 session.reset_conversation()
                 if session.is_chat_mode():
-                    return config.response.reset_chat
+                    return config.response.reset_chat.format(system_prompt=session.chatbot.bot.system_prompt)
                 elif session.is_qa_mode():
                     return config.response.reset_qa
                 else:
