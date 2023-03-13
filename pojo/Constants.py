@@ -10,10 +10,11 @@ class InteractiveMode(Enum):
     CHAT = "chat"
     Q_A = "q&a"
 
-    def parse(self, mode_str: str):
-        if mode_str == self.CHAT.value:
-            return self.CHAT
-        elif mode_str == self.Q_A.value:
-            return self.Q_A
+    @staticmethod
+    def parse(mode_str: str):
+        if mode_str == InteractiveMode.CHAT.value:
+            return InteractiveMode.CHAT
+        elif mode_str == InteractiveMode.Q_A.value:
+            return InteractiveMode.Q_A
         else:
             raise Exception("Not support interactive mode -> " + mode_str)
