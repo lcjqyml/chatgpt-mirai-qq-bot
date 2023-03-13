@@ -4,7 +4,7 @@ from enum import Enum
 class Constants(Enum):
     CHAT_TIMEOUT_SECONDS = 7200
     """2小时超时"""
-    MAX_TOKENS = 4096
+    MAX_TOKENS = 4000
     """tokens上限"""
 
 
