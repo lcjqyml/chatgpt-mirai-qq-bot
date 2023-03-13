@@ -49,7 +49,7 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             # 聊天模式
             if message.strip() in config.trigger.chat_command:
                 session.reset_conversation(interactive_mode=InteractiveMode.CHAT)
-                return config.response.reset_chat
+                return config.response.reset_chat.format(system_prompt=session.chatbot.bot.system_prompt)
             # qa模式
             if message.strip() in config.trigger.chat_command:
                 session.reset_conversation(interactive_mode=InteractiveMode.Q_A)
