@@ -81,7 +81,7 @@ class ChatSession:
             self.prev_parent_id = []
         elif self.is_v3_api():
             self.interactive_mode = interactive_mode if interactive_mode else self.default_interactive_mode
-            self.chatbot.reset(self.session_id)
+            self.chatbot.reset(convo_id=self.session_id, no_system_prompt=self.is_qa_mode())
 
     def v1_ask(self, prompt, conversation_id=None, parent_id=None):
         """向 revChatGPT.V1 发送提问"""
