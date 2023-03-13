@@ -80,9 +80,9 @@ class Trigger(BaseModel):
     """重置会话的命令"""
     rollback_command: List[str] = ["回滚会话"]
     """回滚会话的命令"""
-    qa_command: List[str] = ["问答模式", "重置问答会话"]
+    qa_command: List[str] = ["问答模式", "重置问答会话", "重置问答模式"]
     """问答模式的命令"""
-    chat_command: List[str] = ["聊天模式", "重置聊天会话"]
+    chat_command: List[str] = ["聊天模式", "重置聊天会话", "重置聊天模式"]
     """聊天模式的命令"""
     ping_command: List[str] = ["ping", "状态"]
     """"""
