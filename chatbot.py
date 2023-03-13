@@ -84,6 +84,14 @@ class ChatSession:
             self.interactive_mode = interactive_mode if interactive_mode else self.default_interactive_mode
             self.chatbot.reset(convo_id=self.session_id, no_system_prompt=self.is_qa_mode())
 
+    def get_system_prompt(self):
+        """获取system_prompt"""
+        if self.is_v3_api():
+            return next((item["content"] for item in self.chatbot.bot.conversation[self.session_id] if
+                         item["role"] == "system"), "无")
+        else:
+            return "无"
+
     def v1_ask(self, prompt, conversation_id=None, parent_id=None):
         """向 revChatGPT.V1 发送提问"""
         resp = self.chatbot.bot.ask(prompt=prompt, conversation_id=conversation_id, parent_id=parent_id)
@@ -162,7 +170,7 @@ def get_chat_session(session_id: str, api_version: str = None) -> ChatSession:
 def conversation_remover():
     logger.info("删除会话中……")
     for session in __sessions.values():
-        if session.chatbot.account.auto_remove_old_conversations and session.chatbot and session.conversation_id:
+        if session.chatbot and session.conversation_id:
             try:
                 session.chatbot.bot.delete_conversation(session.conversation_id)
             except Exception as e:
