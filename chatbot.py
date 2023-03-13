@@ -67,7 +67,7 @@ class ChatSession:
                                                   api_model=self.chatbot.bot.engine,
                                                   current_token_count=self.chatbot.bot.get_token_count(self.session_id),
                                                   max_token_count=self.chatbot.bot.max_tokens,
-                                                  system_prompt=self.chatbot.bot.system_prompt)
+                                                  system_prompt=self.get_system_prompt())
 
     def reset_conversation(self, interactive_mode: InteractiveMode = None):
         """重置会话"""
