@@ -8,6 +8,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY requirements.txt /app
 RUN pip install -r requirements.txt
 
+ENV TZ=Asia/Shanghai
+RUN ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo ${TZ} > /etc/timezone \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY . /app
 
 CMD ["/bin/bash", "/app/docker/start.sh"]
