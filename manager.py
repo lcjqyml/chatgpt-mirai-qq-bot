@@ -214,7 +214,7 @@ class BotManager:
                             proxy=login_config.get('proxy', None),
                             engine=cached_account['chat_model'],
                             temperature=cached_account['temperature'],
-                            system_prompt=cached_account['system_prompt'],
+                            system_prompt=".",
                             max_tokens=Constants.MAX_TOKENS.value)
             if __v3_check_auth(bot):
                 return BotInfo(bot, account.api_version)
