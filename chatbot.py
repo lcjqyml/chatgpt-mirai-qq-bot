@@ -163,6 +163,9 @@ def get_chat_session(session_id: str, api_version: str = None) -> ChatSession:
     if session_id not in __sessions:
         __sessions[session_id] = ChatSession(session_id, api_version)
     session: ChatSession = __sessions[session_id]
+    if api_version is not None and session.api_version != api_version:
+        __sessions[session_id] = ChatSession(session_id, api_version)
+        session: ChatSession = __sessions[session_id]
     session.check_and_reset_conversation()
     return session
 

@@ -36,7 +36,7 @@ async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
 
 async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str = None):
     message = session_id + "[" + time + "]: " + data['message']
-    print("API[" + api_version if api_version else "_" + "]: " + message)
+    logger.info("API[" + api_version if api_version else "_" + "]: " + message)
     if message in processed_messages:
         response = "skip"
     else:
