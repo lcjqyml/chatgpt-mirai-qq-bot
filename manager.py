@@ -105,7 +105,7 @@ class BotManager:
                     bot.account = account
                     self.v1bots.append(bot)
                     logger.success("V1账号登录成功！")
-                if account.api_version == "V3":
+                elif account.api_version == "V3":
                     bot = self.__login_v3(account)
                     bot.id = i
                     bot.account = account
