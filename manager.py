@@ -114,8 +114,8 @@ class BotManager:
                 else:
                     raise Exception("未定义的登录接口版本：" + account.api_version)
                 self.bots.append(bot)
-                logger.debug("等待 8 秒……")
-                time.sleep(8)
+                logger.debug("等待 3 秒……")
+                time.sleep(3)
             except OpenAIAuth.Error as e:
                 logger.error("登录失败! 请检查 IP 、代理或者账号密码是否正确{exc}", exc=e)
             except (SSLError, urllib3.exceptions.MaxRetryError) as e:

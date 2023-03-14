@@ -1,5 +1,5 @@
 config.json
-config.cfg
+config/
 __pycache__/
 python3.9/
 .idea/
