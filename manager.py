@@ -235,12 +235,17 @@ class BotManager:
         return login_config
 
     def pick(self, api_version) -> BotInfo:
+        bot_cnt = 0
         if api_version == "V1":
+            bot_cnt = len(self.v1bots)
             self.roundrobin = itertools.cycle(self.v1bots)
         elif api_version == "V2":
+            bot_cnt = len(self.v2bots)
             self.roundrobin = itertools.cycle(self.v2bots)
         elif api_version == "V3":
+            bot_cnt = len(self.v3bots)
             self.roundrobin = itertools.cycle(self.v3bots)
-        else:
+        if bot_cnt == 0:
+            logger.info("任意选定api_version")
             self.roundrobin = itertools.cycle(self.bots)
         return next(self.roundrobin)
