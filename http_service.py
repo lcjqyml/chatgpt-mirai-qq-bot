@@ -43,6 +43,7 @@ async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str
         # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
         response = await handle_message(session_id=session_id, message=data['message'], api_version=api_version)
         processed_messages.append(message)
+    logger.info(response)
     return {"success": response}
 
 

@@ -58,7 +58,7 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             resp = await session.get_chat_response(message)
             interactive_mode_info = "[" + session.interactive_mode.value + "]: " if session.interactive_mode else ""
             if resp:
-                logger.debug(f"API[{session.api_version}] - {interactive_mode_info}{session_id} - {resp}")
+                logger.debug(f"API[{session.api_version}] - {interactive_mode_info}{session_id}")
                 return resp.strip()
         except SSLError as e:
             logger.exception(e)
