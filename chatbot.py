@@ -34,7 +34,7 @@ class ChatSession:
         self.prev_parent_id = []
         self.parent_id = None
         self.conversation_id = None
-        self.api_version = api_version if api_version else "_"
+        self.api_version = api_version if api_version else None
         self.reset_conversation()
 
     def is_chat_mode(self) -> bool:
@@ -68,10 +68,12 @@ class ChatSession:
                                                   current_token_count=self.chatbot.bot.get_token_count(self.session_id),
                                                   max_token_count=self.chatbot.bot.max_tokens,
                                                   system_prompt=self.get_system_prompt())
+        return f"Not support version {self.api_version}"
 
     def reset_conversation(self, interactive_mode: InteractiveMode = None):
         """重置会话"""
         self.chatbot = botManager.pick(self.api_version)
+        self.api_version = self.chatbot.api_version
         self.default_interactive_mode = InteractiveMode.parse(mode_str=self.chatbot.account.default_interactive_mode)
         self.last_operation_time = None
         if self.is_v1_api():
