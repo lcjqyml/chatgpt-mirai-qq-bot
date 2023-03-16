@@ -56,9 +56,12 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
                 return config.response.reset_qa
             # 正常交流
             resp = await session.get_chat_response(message)
-            interactive_mode_info = "[" + session.interactive_mode.value + "]: " if session.interactive_mode else ""
+            interactive_mode_info = "interactive_mode[" + session.interactive_mode.value + "] - " if session.interactive_mode else ""
             if resp:
-                logger.debug(f"API[{session.api_version}] - {interactive_mode_info}{session_id}")
+                logger.debug(f"session_id[{session_id}] - "
+                             f"api_version[{session.api_version}] - "
+                             f"{interactive_mode_info}"
+                             f"chatbot_id[{session.chatbot.id}]")
                 return resp.strip()
         except SSLError as e:
             logger.exception(e)
