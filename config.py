@@ -89,7 +89,7 @@ class Trigger(BaseModel):
 
 
 class Response(BaseModel):
-    error_format: str = "出现故障！如果这个问题持续出现，请和我说“重置会话” 来开启一段新的会话，或者发送 “回滚对话” 来回溯到上一条对话，你上一条说的我就当作没看见。"
+    error_format: str = "出现故障！如果这个问题持续出现，请和我说“重置会话” 来开启一段新的会话，或者发送 “回滚对话” 来回溯到上一条对话，你上一条说的我就当作没看见。\n{exc}"
     """发生错误时发送的消息，请注意可以插入 {exc} 作为异常占位符"""
 
     error_network_failure: str = "网络故障！连接 OpenAI 服务器失败，我需要更好的网络才能服务！\n{exc}"

@@ -44,13 +44,13 @@ class ChatSession:
         return self.interactive_mode == InteractiveMode.Q_A
 
     def is_v1_api(self) -> bool:
-        return self.api_version == "V1"
+        return self.api_version == Constants.V1_API.value
 
     def is_v2_api(self) -> bool:
-        return self.api_version == "V2"
+        return self.api_version == Constants.V2_API.value
 
     def is_v3_api(self) -> bool:
-        return self.api_version == "V3"
+        return self.api_version == Constants.V3_API.value
 
     def get_status(self) -> str:
         """获取session状态"""

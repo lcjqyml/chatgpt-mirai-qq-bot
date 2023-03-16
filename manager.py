@@ -3,6 +3,7 @@ import hashlib
 import itertools
 import os
 import sys
+import threading
 import time
 from datetime import datetime
 from typing import Union, List
@@ -58,9 +59,12 @@ class BotInfo(asyncio.Lock):
                 system_prompt = self.account.system_prompt.format(current_date=datetime.now().strftime('%Y-%m-%d'))
             self.bot.reset(convo_id=convo_id, system_prompt=system_prompt)
 
+    def is_running(self):
+        return BotManager.check_auth(self)
+
     def __init__(self, bot, api_version):
         self.bot = bot
-        self.api_version = api_version
+        self.api_version = str(api_version).upper()
         super().__init__()
 
     def __str__(self) -> str:
@@ -97,18 +101,19 @@ class BotManager:
         except:
             pass
         self.cache_db = TinyDB('data/login_caches.json')
+        self.lock = threading.Lock()
 
     def login(self):
         for i, account in enumerate(self.accounts):
             logger.info("正在登录第 {i} 个 OpenAI 账号", i=i + 1)
             try:
-                if account.api_version == "V1":
+                if account.api_version == Constants.V1_API.value:
                     bot = self.__login_v1(account)
                     bot.id = i
                     bot.account = account
                     self.v1bots.append(bot)
                     logger.success("V1账号登录成功！")
-                elif account.api_version == "V3":
+                elif account.api_version == Constants.V3_API.value:
                     bot = self.__login_v3(account)
                     bot.id = i
                     bot.account = account
@@ -154,14 +159,6 @@ class BotManager:
         cached_account = dict(self.__load_login_cache(account), **account.dict())
         login_config = self.__check_proxy_config(account)
 
-        # 我承认这部分代码有点蠢
-        def __v1_check_auth(bot) -> bool:
-            try:
-                bot.get_conversations(0, 1)
-                return True
-            except (V1Error, KeyError) as e:
-                return False
-
         def get_access_token(bot: V1Chatbot):
             return bot.session.headers.get('Authorization').removeprefix('Bearer ')
 
@@ -169,7 +166,7 @@ class BotManager:
             logger.info("尝试使用 access_token 登录中...")
             login_config['access_token'] = cached_account['access_token']
             bot = V1Chatbot(config=login_config)
-            if __v1_check_auth(bot):
+            if BotManager.check_auth(bot):
                 return BotInfo(bot, account.api_version)
 
         if 'session_token' in cached_account:
@@ -181,7 +178,7 @@ class BotManager:
                 "session_token": login_config['session_token'],
                 "access_token": get_access_token(bot),
             })
-            if __v1_check_auth(bot):
+            if BotManager.check_auth(bot):
                 return BotInfo(bot, account.api_version)
 
         if 'password' in cached_account:
@@ -195,7 +192,7 @@ class BotManager:
                 "session_token": bot.config['session_token'],
                 "access_token": get_access_token(bot)
             })
-            if __v1_check_auth(bot):
+            if BotManager.check_auth(bot):
                 return BotInfo(bot, account.api_version)
         # Invalidate cache
         self.__save_login_cache(account=account, cache={})
@@ -203,14 +200,7 @@ class BotManager:
 
     def __login_v3(self, account: OpenAIAuthBase) -> BotInfo:
         cached_account = dict(self.__load_login_cache(account), **account.dict())
-        login_config = self.__check_proxy_config(account)
-
-        def __v3_check_auth(bot) -> bool:
-            try:
-                bot.ask("ping")
-                return True
-            except KeyError as e:
-                return False
+        login_config = BotManager.__check_proxy_config(account)
 
         if 'api_key' in cached_account:
             bot = V3Chatbot(api_key=cached_account['api_key'],
@@ -219,11 +209,37 @@ class BotManager:
                             temperature=cached_account['temperature'],
                             system_prompt=".",
                             max_tokens=Constants.MAX_TOKENS.value)
-            if __v3_check_auth(bot):
+            if BotManager.check_auth(bot):
                 return BotInfo(bot, account.api_version)
         # Invalidate cache
         self.__save_login_cache(account=account, cache={})
         raise Exception("All login method failed")
+
+    @staticmethod
+    def check_auth(bot: [V1Chatbot, V3Chatbot]):
+        if isinstance(bot, V1Chatbot):
+            return BotManager.v1_check_auth(bot)
+        elif isinstance(bot, V3Chatbot):
+            return BotManager.v3_check_auth(bot)
+        raise Exception(f"Unknown bot -> {str(bot)}")
+
+    @staticmethod
+    def v3_check_auth(bot: V3Chatbot) -> bool:
+        try:
+            response = bot.ask("ping")
+            logger.debug(f"v3 bot[{bot.api_key}] is running. ping -> {response}")
+            return True
+        except KeyError as e:
+            return False
+
+    @staticmethod
+    def v1_check_auth(bot: V1Chatbot) -> bool:
+        try:
+            response = bot.get_conversations(0, 1)
+            logger.debug(f"v1 bot is running. Top conversation -> {str(response)}")
+            return True
+        except (V1Error, KeyError) as e:
+            return False
 
     @staticmethod
     def __check_proxy_config(account: OpenAIAuthBase) -> dict:
@@ -237,18 +253,46 @@ class BotManager:
             login_config['proxy'] = account.proxy
         return login_config
 
+    def check_bots(self, api_version: str = None):
+        """检测bot是否有效，剔除无效bot, 若没有有效bot则返回False"""
+        if api_version is None:
+            self.bots = [bot for bot in self.bots if bot.is_running()]
+            self.v1bots = [bot for bot in self.bots if bot.api_version == Constants.V1_API.value]
+            self.v2bots = [bot for bot in self.bots if bot.api_version == Constants.V2_API.value]
+            self.v3bots = [bot for bot in self.bots if bot.api_version == Constants.V3_API.value]
+            if len(self.bots) == 0:
+                return False
+        elif api_version == Constants.V1_API.value:
+            self.v1bots = [bot for bot in self.v1bots if bot.is_running()]
+            self.bots = self.v1bots + self.v2bots + self.v3bots
+            if len(self.v1bots) == 0:
+                return False
+        elif api_version == Constants.V2_API.value:
+            self.v2bots = [bot for bot in self.v2bots if bot.is_running()]
+            self.bots = self.v1bots + self.v2bots + self.v3bots
+            if len(self.v2bots) == 0:
+                return False
+        elif api_version == Constants.V3_API.value:
+            self.v3bots = [bot for bot in self.v3bots if bot.is_running()]
+            self.bots = self.v1bots + self.v2bots + self.v3bots
+            if len(self.v3bots) == 0:
+                return False
+        return True
+
     def pick(self, api_version) -> BotInfo:
-        bot_cnt = 0
-        if api_version == "V1":
-            bot_cnt = len(self.v1bots)
-            self.roundrobin = itertools.cycle(self.v1bots)
-        elif api_version == "V2":
-            bot_cnt = len(self.v2bots)
-            self.roundrobin = itertools.cycle(self.v2bots)
-        elif api_version == "V3":
-            bot_cnt = len(self.v3bots)
-            self.roundrobin = itertools.cycle(self.v3bots)
-        if bot_cnt == 0:
-            logger.info("任意选定api_version")
-            self.roundrobin = itertools.cycle(self.bots)
+        with self.lock:
+            if api_version is None or not self.check_bots(api_version):
+                return self.pick_any()
+            if api_version == Constants.V1_API.value:
+                self.roundrobin = itertools.cycle(self.v1bots)
+            elif api_version == Constants.V2_API.value:
+                self.roundrobin = itertools.cycle(self.v2bots)
+            elif api_version == Constants.V3_API.value:
+                self.roundrobin = itertools.cycle(self.v3bots)
+            return next(self.roundrobin)
+
+    def pick_any(self) -> BotInfo:
+        if not self.check_bots():
+            raise Exception("No available bot.")
+        self.roundrobin = itertools.cycle(self.bots)
         return next(self.roundrobin)

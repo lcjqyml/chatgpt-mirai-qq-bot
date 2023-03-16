@@ -12,6 +12,7 @@ from simple_http_server import request_map
 
 import chatbot
 from config import Config
+from pojo.Constants import Constants
 
 sys.path.append(os.getcwd())
 
@@ -21,12 +22,12 @@ processed_messages = deque(maxlen=100)
 
 @request_map("/v1/chatgpt/ask/{session_id}", method=["post"])
 async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, session_id=session_id, time=time, api_version="V1")
+    return await ask(data=data, session_id=session_id, time=time, api_version=Constants.V1_API.value)
 
 
 @request_map("/v3/chatgpt/ask/{session_id}", method=["post"])
 async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, session_id=session_id, time=time, api_version="V3")
+    return await ask(data=data, session_id=session_id, time=time, api_version=Constants.V3_API.value)
 
 
 @request_map("/v_/chatgpt/ask/{session_id}", method=["post"])

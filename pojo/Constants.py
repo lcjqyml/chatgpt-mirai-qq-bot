@@ -6,7 +6,9 @@ class Constants(Enum):
     """2小时超时"""
     MAX_TOKENS = 4000
     """tokens上限"""
-
+    V1_API = "V1"
+    V2_API = "V2"
+    V3_API = "V3"
 
 class InteractiveMode(Enum):
     CHAT = "chat"
