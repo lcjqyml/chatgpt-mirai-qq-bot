@@ -47,7 +47,10 @@ class BotInfo(asyncio.Lock):
     def reset(self, convo_id: str, no_system_prompt: bool = False):
         if isinstance(self.bot, V1Chatbot):
             if convo_id is not None:
-                self.bot.delete_conversation(convo_id)
+                try:
+                    self.bot.delete_conversation(convo_id)
+                except V1Error as e:
+                    logger.warning(f"Failed to delete conversation: {convo_id}")
         elif isinstance(self.bot, V3Chatbot):
             if no_system_prompt:
                 system_prompt = "."
