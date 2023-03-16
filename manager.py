@@ -60,7 +60,7 @@ class BotInfo(asyncio.Lock):
             self.bot.reset(convo_id=convo_id, system_prompt=system_prompt)
 
     def is_running(self):
-        return BotManager.check_auth(self)
+        return BotManager.check_auth(self.bot)
 
     def __init__(self, bot, api_version):
         self.bot = bot
