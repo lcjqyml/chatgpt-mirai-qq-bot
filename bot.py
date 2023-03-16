@@ -67,7 +67,7 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             # Other un-handled exceptions
             if 'Too many requests' in str(e):
                 return config.response.error_request_too_many.format(exc=e)
-            elif 'overloaded' in str(e):
+            elif 'overloaded' in str(e) or 'Only one message at a time' in str(e):
                 return config.response.error_server_overloaded.format(exc=e)
             elif 'Unauthorized' in str(e):
                 return config.response.error_session_authenciate_failed.format(exc=e)
