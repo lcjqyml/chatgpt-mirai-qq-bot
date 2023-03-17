@@ -10,6 +10,7 @@ class Constants(Enum):
     V2_API = "V2"
     V3_API = "V3"
 
+
 class InteractiveMode(Enum):
     CHAT = "chat"
     Q_A = "q&a"

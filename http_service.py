@@ -38,14 +38,18 @@ async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
 async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str = None):
     message = session_id + "[" + time + "]: " + data['message']
     logger.info("API[" + (api_version if api_version else "_") + "]: " + message)
+    session_summary = ""
     if message in processed_messages:
         response = "skip"
     else:
         # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response = await handle_message(session_id=session_id, message=data['message'], api_version=api_version)
+        response, session_summary = await handle_message(session_id=session_id, message=data['message'], api_version=api_version)
         processed_messages.append(message)
     logger.info(response)
-    return {"success": response}
+    if session_summary != "":
+        return {"success": response, "session_summary": session_summary}
+    else:
+        return {"success": response}
 
 
 def main(*args):
