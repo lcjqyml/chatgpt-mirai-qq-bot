@@ -21,7 +21,7 @@ def get_session_summary(session):
         token_info = f"{session.chatbot.bot.get_token_count(session.session_id)}/{session.chatbot.bot.max_tokens}"
     tmp_summary = {
         "api_version": session.api_version,
-        "interactive_mode": session.interactive_mode.description(),
+        "interactive_mode": session.interactive_mode.description() if session.interactive_mode else None,
         "token_info": token_info
     }
     return json.dumps(tmp_summary, default=ignore_none)
