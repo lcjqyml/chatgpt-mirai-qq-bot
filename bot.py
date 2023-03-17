@@ -82,11 +82,13 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
             interactive_mode_info = "interactive_mode[" + session.interactive_mode.value + "] - " \
                 if session.interactive_mode else ""
             if resp:
+                session_summary = get_session_summary(session)
                 logger.debug(f"session_id[{session_id}] - "
                              f"api_version[{session.api_version}] - "
                              f"{interactive_mode_info}"
-                             f"chatbot_id[{session.chatbot.id}]")
-                return resp.strip(), get_session_summary(session)
+                             f"chatbot_id[{session.chatbot.id}] - "
+                             f"session_summary{session_summary}")
+                return resp.strip(), session_summary
         except SSLError as e:
             logger.exception(e)
             return config.response.error_network_failure.format(exc=e), get_session_summary(session)

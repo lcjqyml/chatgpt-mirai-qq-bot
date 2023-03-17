@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 import sys
@@ -43,13 +44,14 @@ async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str
         response = "skip"
     else:
         # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response, session_summary = await handle_message(session_id=session_id, message=data['message'], api_version=api_version)
+        response, session_summary = await handle_message(session_id=session_id, message=data['message'],
+                                                         api_version=api_version)
         processed_messages.append(message)
     logger.info(response)
+    response_obj = {"success": response}
     if session_summary != "":
-        return {"success": response, "session_summary": session_summary}
-    else:
-        return {"success": response}
+        response_obj["session_summary"] = json.loads(session_summary)
+    return response_obj
 
 
 def main(*args):
