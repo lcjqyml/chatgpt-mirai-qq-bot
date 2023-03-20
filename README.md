@@ -32,7 +32,6 @@
 
 # 第 1 个 OpenAI 账号的登录信息
 [[openai.accounts]]
-# 模式选择，详情见下方 README
 api_version = "V3"
 # 走付费api时使用的model
 chat_model = "gpt-3.5-turbo"
@@ -76,7 +75,6 @@ paid = false
 
 # # 第 2 个 OpenAI 账号的登录信息
 # [[openai.accounts]]
-# 模式选择，详情见下方 README
 # api_version = "V2"
 
 # # 你的 OpenAI 邮箱
@@ -96,7 +94,6 @@ paid = false
 
 # # 第 3 个 OpenAI 账号的登录信息
 # [[openai.accounts]]
-# 模式选择，详情见下方 README
 # api_version = "V1"
 
 # # 你的 OpenAI 邮箱
@@ -113,6 +110,15 @@ paid = false
 
 # # 使用 ChatGPT Plus（plus 用户此项设置为 true）
 # paid = false
+
+# # 第 4 个 OpenAI 账号的登录信息
+# [[openai.accounts]]
+# api_version = "POE"
+# 登录poe.com后，cookie中p-b的值
+# p_b_token = ""
+# 默认使用哪个机器人{'capybara': 'Sage', 'beaver': 'GPT-4', 'a2_2': 'Claude+','a2': 'Claude', 'chinchilla': 'ChatGPT', 'nutria': 'Dragonfly'}
+# default_bot_name = "chinchilla"
+
 
 [trigger]
 # 配置机器人要如何响应，下面所有项均可选 (也就是可以直接删掉那一行)
@@ -175,11 +181,17 @@ reset_chat = "会话已重置，当前为聊天模式，无交互2小时后自�
 # 重置为问答模式后发送的消息
 reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
 
+# 重置poe模式时发送的消息
+reset_poe = "poe模式暂不支持重置消息"
+
 # v1接口ping返回值模板
 ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}\n"
 
 # v3接口ping返回值模板
 ping_v3 = ping_v1 + "\napi模型：{api_model}\ntoken数量：{current_token_count}/{max_token_count}"
+
+# poe接口ping返回值模板 
+ping_poe = "api版本：{api_version}\n上次交互时间：{last_operation_time}\n"
 
 # 回滚成功时发送的消息
 rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"

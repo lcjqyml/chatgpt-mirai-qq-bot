@@ -9,6 +9,7 @@ class Constants(Enum):
     V1_API = "V1"
     V2_API = "V2"
     V3_API = "V3"
+    POE_API = "POE"
 
 
 class InteractiveMode(Enum):
@@ -29,3 +30,20 @@ class InteractiveMode(Enum):
             return InteractiveMode.Q_A
         else:
             raise Exception("Not support interactive mode -> " + mode_str)
+
+
+class PoeBots(Enum):
+    capybara = "Sage"
+    beaver = "GPT-4"
+    a2_2 = "Claude+"
+    a2 = "Claude"
+    chinchilla = "ChatGPT"
+    nutria = "Dragonfly"
+
+    @staticmethod
+    def parse(bot_name: str):
+        tmp_name = bot_name.lower()
+        for bot in PoeBots:
+            if str(bot.name).lower() == tmp_name or str(bot.value).lower() == tmp_name:
+                return bot
+        return None

@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import itertools
+import json
 import os
 import sys
 import threading
@@ -14,11 +15,12 @@ from loguru import logger
 from requests.exceptions import SSLError
 from revChatGPT.V1 import Chatbot as V1Chatbot, Error as V1Error
 from revChatGPT.V3 import Chatbot as V3Chatbot
+from poe import Client as PoeChatbot
 from tinydb import TinyDB, Query
 
 import utils.network as network
-from config import Config
-from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey
+from config import Config, AuthBase
+from config import OpenAIAuthBase, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth
 from pojo.Constants import Constants
 
 sys.path.append(os.getcwd())
@@ -29,9 +31,11 @@ config = Config.load_config()
 class BotInfo(asyncio.Lock):
     id = 0
 
-    account: OpenAIAuthBase
+    account: AuthBase
 
-    bot: Union[V1Chatbot, V3Chatbot]
+    account_info = {}
+
+    bot: Union[V1Chatbot, V3Chatbot, PoeChatbot]
 
     api_version: str
 
@@ -56,15 +60,18 @@ class BotInfo(asyncio.Lock):
             if no_system_prompt:
                 system_prompt = "."
             else:
-                system_prompt = self.account.system_prompt.format(current_date=datetime.now().strftime('%Y-%m-%d'))
+                system_prompt = self.account_info["system_prompt"].format(
+                    current_date=datetime.now().strftime('%Y-%m-%d'))
             self.bot.reset(convo_id=convo_id, system_prompt=system_prompt)
 
     def is_running(self):
         return BotManager.check_auth(self.bot)
 
-    def __init__(self, bot, api_version):
+    def __init__(self, bot, api_version, account):
         self.bot = bot
         self.api_version = str(api_version).upper()
+        self.account = account
+        self.account_info = vars(account)
         super().__init__()
 
     def __str__(self) -> str:
@@ -85,14 +92,16 @@ class BotManager:
     v1bots: List[BotInfo] = []
     v2bots: List[BotInfo] = []
     v3bots: List[BotInfo] = []
+    poe_bots: List[BotInfo] = []
     """Bot list"""
 
-    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]
+    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth]]
     """Account infos"""
 
     roundrobin: itertools.cycle = None
 
-    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]) -> None:
+    def __init__(self, accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth,
+                                            OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth]]) -> None:
         self.accounts = accounts
         try:
             os.mkdir('data')
@@ -107,20 +116,29 @@ class BotManager:
         for i, account in enumerate(self.accounts):
             logger.info("正在登录第 {i} 个 OpenAI 账号", i=i + 1)
             try:
-                if account.api_version == Constants.V1_API.value:
-                    bot = self.__login_v1(account)
+                if account.is_openai_auth():
+                    if account.api_version == Constants.V1_API.value:
+                        bot = self.__login_v1(account)
+                        bot.id = i
+                        bot.account = account
+                        self.v1bots.append(bot)
+                        logger.success("V1账号登录成功！")
+                    elif account.api_version == Constants.V3_API.value:
+                        bot = self.__login_v3(account)
+                        bot.id = i
+                        bot.account = account
+                        self.v3bots.append(bot)
+                        logger.success("V3账号登录成功！")
+                    else:
+                        raise Exception("未定义的登录接口版本：" + account.api_version)
+                elif account.is_poe_auth():
+                    bot = self.__login_poe(account)
                     bot.id = i
                     bot.account = account
-                    self.v1bots.append(bot)
-                    logger.success("V1账号登录成功！")
-                elif account.api_version == Constants.V3_API.value:
-                    bot = self.__login_v3(account)
-                    bot.id = i
-                    bot.account = account
-                    self.v3bots.append(bot)
-                    logger.success("V3账号登录成功！")
+                    self.poe_bots.append(bot)
+                    logger.success("poe账号登录成功！")
                 else:
-                    raise Exception("未定义的登录接口版本：" + account.api_version)
+                    raise Exception("未定义的登录接口：" + json.dumps(account))
                 self.bots.append(bot)
                 logger.debug("等待 3 秒……")
                 time.sleep(3)
@@ -142,7 +160,7 @@ class BotManager:
             exit(-2)
         logger.success(f"成功登录 {len(self.bots)}/{len(self.accounts)} 个账号！")
 
-    def __save_login_cache(self, account: OpenAIAuthBase, cache: dict):
+    def __save_login_cache(self, account: AuthBase, cache: dict):
         """保存登录缓存"""
         account_sha = hashlib.sha256(account.json().encode('utf8')).hexdigest()
         q = Query()
@@ -167,7 +185,7 @@ class BotManager:
             login_config['access_token'] = cached_account['access_token']
             bot = V1Chatbot(config=login_config)
             if BotManager.check_auth(bot):
-                return BotInfo(bot, account.api_version)
+                return BotInfo(bot, account.api_version, account)
 
         if 'session_token' in cached_account:
             logger.info("尝试使用 session_token 登录中...")
@@ -179,7 +197,7 @@ class BotManager:
                 "access_token": get_access_token(bot),
             })
             if BotManager.check_auth(bot):
-                return BotInfo(bot, account.api_version)
+                return BotInfo(bot, account.api_version, account)
 
         if 'password' in cached_account:
             logger.info("尝试使用 email + password 登录中...")
@@ -193,7 +211,7 @@ class BotManager:
                 "access_token": get_access_token(bot)
             })
             if BotManager.check_auth(bot):
-                return BotInfo(bot, account.api_version)
+                return BotInfo(bot, account.api_version, account)
         # Invalidate cache
         self.__save_login_cache(account=account, cache={})
         raise Exception("All login method failed")
@@ -210,18 +228,38 @@ class BotManager:
                             system_prompt=".",
                             max_tokens=Constants.MAX_TOKENS.value)
             if BotManager.check_auth(bot):
-                return BotInfo(bot, account.api_version)
+                return BotInfo(bot, account.api_version, account)
+        # Invalidate cache
+        self.__save_login_cache(account=account, cache={})
+        raise Exception("All login method failed")
+
+    def __login_poe(self, account: PoeAuth) -> BotInfo:
+        cached_account = dict(self.__load_login_cache(account), **account.dict())
+        bot = PoeChatbot(cached_account["p_b_token"])
+        if BotManager.check_auth(bot):
+            return BotInfo(bot, account.api_version, account)
         # Invalidate cache
         self.__save_login_cache(account=account, cache={})
         raise Exception("All login method failed")
 
     @staticmethod
-    def check_auth(bot: [V1Chatbot, V3Chatbot]):
+    def check_auth(bot: [V1Chatbot, V3Chatbot, PoeChatbot]):
         if isinstance(bot, V1Chatbot):
             return BotManager.v1_check_auth(bot)
         elif isinstance(bot, V3Chatbot):
             return BotManager.v3_check_auth(bot)
+        elif isinstance(bot, PoeChatbot):
+            return BotManager.poe_check_auth(bot)
         raise Exception(f"Unknown bot -> {str(bot)}")
+
+    @staticmethod
+    def poe_check_auth(bot: PoeChatbot) -> bool:
+        try:
+            response = bot.get_bot_names()
+            logger.debug(f"poe bot is running. bot names -> {response}")
+            return True
+        except KeyError as e:
+            return False
 
     @staticmethod
     def v3_check_auth(bot: V3Chatbot) -> bool:
@@ -242,7 +280,7 @@ class BotManager:
             return False
 
     @staticmethod
-    def __check_proxy_config(account: OpenAIAuthBase) -> dict:
+    def __check_proxy_config(account: AuthBase) -> dict:
         login_config = dict()
         if account.proxy is not None:
             logger.info(f"正在检查代理配置：{account.proxy}")
@@ -260,22 +298,28 @@ class BotManager:
             self.v1bots = [bot for bot in self.bots if bot.api_version == Constants.V1_API.value]
             self.v2bots = [bot for bot in self.bots if bot.api_version == Constants.V2_API.value]
             self.v3bots = [bot for bot in self.bots if bot.api_version == Constants.V3_API.value]
+            self.poe_bots = [bot for bot in self.bots if bot.api_version == Constants.POE_API.value]
             if len(self.bots) == 0:
                 return False
         elif api_version == Constants.V1_API.value:
             self.v1bots = [bot for bot in self.v1bots if bot.is_running()]
-            self.bots = self.v1bots + self.v2bots + self.v3bots
+            self.bots = self.v1bots + self.v2bots + self.v3bots + self.poe_bots
             if len(self.v1bots) == 0:
                 return False
         elif api_version == Constants.V2_API.value:
             self.v2bots = [bot for bot in self.v2bots if bot.is_running()]
-            self.bots = self.v1bots + self.v2bots + self.v3bots
+            self.bots = self.v1bots + self.v2bots + self.v3bots + self.poe_bots
             if len(self.v2bots) == 0:
                 return False
         elif api_version == Constants.V3_API.value:
             self.v3bots = [bot for bot in self.v3bots if bot.is_running()]
-            self.bots = self.v1bots + self.v2bots + self.v3bots
+            self.bots = self.v1bots + self.v2bots + self.v3bots + self.poe_bots
             if len(self.v3bots) == 0:
+                return False
+        elif api_version == Constants.POE_API.value:
+            self.poe_bots = [bot for bot in self.v3bots if bot.is_running()]
+            self.bots = self.v1bots + self.v2bots + self.v3bots + self.poe_bots
+            if len(self.poe_bots) == 0:
                 return False
         return True
 
@@ -289,6 +333,8 @@ class BotManager:
                 self.roundrobin = itertools.cycle(self.v2bots)
             elif api_version == Constants.V3_API.value:
                 self.roundrobin = itertools.cycle(self.v3bots)
+            elif api_version == Constants.POE_API.value:
+                self.roundrobin = itertools.cycle(self.poe_bots)
             return next(self.roundrobin)
 
     def pick_any(self) -> BotInfo:

@@ -21,30 +21,35 @@ config = Config.load_config()
 processed_messages = deque(maxlen=100)
 
 
-@request_map("/v1/chatgpt/ask/{session_id}", method=["post"])
-async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, session_id=session_id, time=time, api_version=Constants.V1_API.value)
+@request_map("/v1/chatbot/ask/{session_id}", method=["post"])
+async def chatgpt_v1_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, bot_id=session_id, time=time, api_version=Constants.V1_API.value)
 
 
-@request_map("/v3/chatgpt/ask/{session_id}", method=["post"])
-async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, session_id=session_id, time=time, api_version=Constants.V3_API.value)
+@request_map("/v3/chatbot/ask/{session_id}", method=["post"])
+async def chatgpt_v3_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, bot_id=session_id, time=time, api_version=Constants.V3_API.value)
 
 
-@request_map("/v_/chatgpt/ask/{session_id}", method=["post"])
-async def chatgpt_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, session_id=session_id, time=time, api_version=None)
+@request_map("/poe/chatbot/ask/{bot_name}", method=["post"])
+async def chatgpt_poe_ask(data=JSONBody(), bot_name=PathValue(), time=""):
+    return await ask(data=data, bot_id=bot_name, time=time, api_version=None)
 
 
-async def ask(data=JSONBody(), session_id=PathValue(), time="", api_version: str = None):
-    message = session_id + "[" + time + "]: " + data['message']
+@request_map("/v_/chatbot/ask/{session_id}", method=["post"])
+async def chatgpt_v_ask(data=JSONBody(), session_id=PathValue(), time=""):
+    return await ask(data=data, bot_id=session_id, time=time, api_version=None)
+
+
+async def ask(data=JSONBody(), bot_id=None, time="", api_version: str = None):
+    message = bot_id + "[" + time + "]: " + data['message']
     logger.info("API[" + (api_version if api_version else "_") + "]: " + message)
     session_summary = ""
     if message in processed_messages:
         response = "skip"
     else:
         # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response, session_summary = await handle_message(session_id=session_id, message=data['message'],
+        response, session_summary = await handle_message(bot_id=bot_id, message=data['message'],
                                                          api_version=api_version)
         processed_messages.append(message)
     logger.info(response)

@@ -35,11 +35,11 @@ def ignore_none(value):
         return value
 
 
-async def handle_message(session_id: str, message: str, api_version: str = None) -> Tuple[str, str]:
+async def handle_message(bot_id: str, message: str, api_version: str = None) -> Tuple[str, str]:
     if not message.strip():
         return config.response.placeholder, ""
 
-    session = chatbot.get_chat_session(session_id, api_version)
+    session = chatbot.get_chat_session(bot_id, api_version)
     # ping
     if message.strip() in config.trigger.ping_command:
         return session.get_status(), ""
@@ -60,6 +60,8 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
         try:
             # 重置会话
             if message.strip() in config.trigger.reset_command:
+                if session.is_poe_api():
+                    return config.response.reset_poe, get_session_summary(session)
                 session.reset_conversation()
                 if session.is_chat_mode():
                     return config.response.reset_chat.format(system_prompt=session.get_system_prompt()), \
@@ -68,22 +70,23 @@ async def handle_message(session_id: str, message: str, api_version: str = None)
                     return config.response.reset_qa, get_session_summary(session)
                 else:
                     return config.response.reset, get_session_summary(session)
-            # 聊天模式
-            if message.strip() in config.trigger.chat_command:
-                session.reset_conversation(interactive_mode=InteractiveMode.CHAT)
-                return config.response.reset_chat.format(
-                    system_prompt=session.get_system_prompt()), get_session_summary(session)
-            # qa模式
-            if message.strip() in config.trigger.qa_command:
-                session.reset_conversation(interactive_mode=InteractiveMode.Q_A)
-                return config.response.reset_qa, get_session_summary(session)
+            if session.is_v3_api():
+                # 聊天模式
+                if message.strip() in config.trigger.chat_command:
+                    session.reset_conversation(interactive_mode=InteractiveMode.CHAT)
+                    return config.response.reset_chat.format(
+                        system_prompt=session.get_system_prompt()), get_session_summary(session)
+                # qa模式
+                if message.strip() in config.trigger.qa_command:
+                    session.reset_conversation(interactive_mode=InteractiveMode.Q_A)
+                    return config.response.reset_qa, get_session_summary(session)
             # 正常交流
             resp = await session.get_chat_response(message)
             interactive_mode_info = "interactive_mode[" + session.interactive_mode.value + "] - " \
                 if session.interactive_mode else ""
             if resp:
                 session_summary = get_session_summary(session)
-                logger.debug(f"session_id[{session_id}] - "
+                logger.debug(f"session_id[{bot_id}] - "
                              f"api_version[{session.api_version}] - "
                              f"{interactive_mode_info}"
                              f"chatbot_id[{session.chatbot.id}] - "

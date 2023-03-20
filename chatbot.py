@@ -4,12 +4,12 @@ from datetime import datetime
 
 from loguru import logger
 
-from config import Config, OpenAIAuths
+from config import Config, AuthAccounts
 from manager import BotManager, BotInfo
-from pojo.Constants import InteractiveMode, Constants
+from pojo.Constants import InteractiveMode, Constants, PoeBots
 
 config = Config.load_config()
-if type(config.openai) is OpenAIAuths:
+if type(config.openai) is AuthAccounts:
     botManager = BotManager(config.openai.accounts)
 else:
     # Backward-compatibility
@@ -26,6 +26,7 @@ class ChatSession:
     api_version: str = None
     interactive_mode: InteractiveMode = None
     default_interactive_mode: InteractiveMode = None
+    poe_bot: PoeBots = None
 
     def __init__(self, session_id, api_version: str = None):
         self.last_operation_time = None
@@ -52,6 +53,9 @@ class ChatSession:
     def is_v3_api(self) -> bool:
         return self.api_version == Constants.V3_API.value
 
+    def is_poe_api(self) -> bool:
+        return self.api_version == Constants.POE_API.value
+
     def get_status(self) -> str:
         """获取session状态"""
         last_operation_time_str = self.last_operation_time.strftime("%Y-%m-%d %H:%M:%S") if self.last_operation_time \
@@ -68,13 +72,15 @@ class ChatSession:
                                                   current_token_count=self.chatbot.bot.get_token_count(self.session_id),
                                                   max_token_count=self.chatbot.bot.max_tokens,
                                                   system_prompt=self.get_system_prompt())
+        elif self.is_poe_api():
+            return config.response.ping_poe.format(api_version=self.api_version,
+                                                   last_operation_time=last_operation_time_str)
         return f"Not support version {self.api_version}"
 
     def reset_conversation(self, interactive_mode: InteractiveMode = None):
         """重置会话"""
         self.chatbot = botManager.pick(self.api_version)
         self.api_version = self.chatbot.api_version
-        self.default_interactive_mode = InteractiveMode.parse(mode_str=self.chatbot.account.default_interactive_mode)
         self.last_operation_time = None
         if self.is_v1_api():
             self.chatbot.reset(self.conversation_id)
@@ -83,8 +89,16 @@ class ChatSession:
             self.prev_conversation_id = []
             self.prev_parent_id = []
         elif self.is_v3_api():
+            self.default_interactive_mode = InteractiveMode.parse(
+                mode_str=self.chatbot.account_info["default_interactive_mode"])
             self.interactive_mode = interactive_mode if interactive_mode else self.default_interactive_mode
             self.chatbot.reset(convo_id=self.session_id, no_system_prompt=self.is_qa_mode())
+        elif self.is_poe_api():
+            session_bot = PoeBots.parse(self.session_id)
+            if session_bot is not None:
+                self.poe_bot = session_bot
+            else:
+                self.poe_bot = PoeBots.parse(self.chatbot.account_info["default_bot_name"])
 
     def get_system_prompt(self):
         """获取system_prompt"""
@@ -110,6 +124,15 @@ class ChatSession:
             self.chatbot.bot.rollback(len(self.chatbot.bot.conversation[self.session_id]), convo_id=self.session_id)
         return self.chatbot.bot.ask(prompt=prompt, convo_id=self.session_id)
 
+    def poe_ask(self, prompt):
+        """向poe.com发送提问"""
+        final_resp = None
+        for final_resp in self.chatbot.bot.send_message(chatbot=self.poe_bot.name, message=prompt):
+            pass
+        if final_resp is None:
+            raise Exception("OpenAI 在返回结果时出现了错误")
+        return final_resp["text"]
+
     def rollback_conversation(self) -> bool:
         """回滚会话"""
         if self.is_v1_api():
@@ -123,6 +146,8 @@ class ChatSession:
                 self.chatbot.bot.rollback(2, convo_id=self.session_id)
             elif conversation_size == 2:
                 self.chatbot.bot.rollback(1, convo_id=self.session_id)
+        elif self.is_poe_api():
+            return False
         return True
 
     def check_and_reset_conversation(self):
@@ -153,6 +178,9 @@ class ChatSession:
                 return resp["message"]
             elif self.is_v3_api():
                 resp = await loop.run_in_executor(None, self.v3_ask, message)
+                return resp
+            elif self.is_poe_api():
+                resp = await loop.run_in_executor(None, self.poe_ask, message)
                 return resp
         finally:
             self.last_operation_time = datetime.now()

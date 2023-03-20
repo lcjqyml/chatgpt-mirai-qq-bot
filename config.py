@@ -8,15 +8,38 @@ import sys
 import toml
 
 
-class OpenAIAuths(BaseModel):
-    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]]
+class AuthAccounts(BaseModel):
+    accounts: List[Union[OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth]]
 
 
-class OpenAIAuthBase(BaseModel):
+class AuthBase(BaseModel):
     api_version: str
-    """调用revChatGPT哪个API版本"""
+    """API版本"""
     proxy: Union[str, None] = None
     """可选的代理地址"""
+    verbose: bool = False
+    """启用详尽日志模式"""
+    title_pattern: str = ""
+    """自动修改标题，为空则不修改"""
+    def is_poe_auth(self):
+        return isinstance(self, PoeAuth)
+
+    def is_openai_auth(self):
+        return isinstance(self, OpenAIAuthBase)
+
+
+class PoeAuth(AuthBase):
+    api_version: str = "POE"
+    """API版本"""
+    p_b_token: str
+    """登录poe.com后，cookie中p-b的值"""
+    default_bot_name: str = "chinchilla"
+    """默认使用哪个机器人{'capybara': 'Sage', 'beaver': 'GPT-4', 'a2_2': 'Claude+', 
+    'a2': 'Claude', 'chinchilla': 'ChatGPT', 'nutria': 'Dragonfly'}"""
+
+
+class OpenAIAuthBase(AuthBase):
+    """调用revChatGPT哪个API版本"""
     driver_exec_path: Union[str, None] = None
     """可选的 Chromedriver 路径"""
     browser_exec_path: Union[str, None] = None
@@ -29,10 +52,6 @@ class OpenAIAuthBase(BaseModel):
     """chat调用的OpenAI模型"""
     temperature: float = 0.7
     """机器人情感值，范围  0 ~ 1，越高话越多"""
-    verbose: bool = False
-    """启用详尽日志模式"""
-    title_pattern: str = ""
-    """自动修改标题，为空则不修改"""
     auto_remove_old_conversations: bool = False
     """自动删除旧的对话"""
     system_prompt: str = "You're an AI assistant communicating in Chinese. Answer questions as succinctly as " \
@@ -118,6 +137,9 @@ class Response(BaseModel):
     reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
     """重置为问答模式后发送的消息"""
 
+    reset_poe = "poe模式暂不支持重置消息"
+    """重置poe模式时发送的消息"""
+
     ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}"
     """v1接口ping返回值模板"""
 
@@ -126,10 +148,13 @@ class Response(BaseModel):
                         "\nAI默认设定：{system_prompt}"
     """v3接口ping返回值模板"""
 
+    ping_poe = "当前api版本：{api_version}\n上次交互时间：{last_operation_time}"
+    """poe接口ping返回值模板"""
+
     rollback_success = "已回滚至上一条对话，你刚刚发的我就忘记啦！"
     """成功回滚时发送的消息"""
 
-    rollback_fail = "回滚失败，没有更早的记录了！"
+    rollback_fail = "回滚失败，没有更早的记录或者不支持回滚！"
     """回滚失败时发送的消息"""
 
     quote: bool = True
@@ -163,11 +188,11 @@ class System(BaseModel):
 
 
 class Config(BaseModel):
-    openai: Union[OpenAIAuths, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey]
+    openai: Union[AuthAccounts, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth]
     trigger: Trigger = Trigger()
     response: Response = Response()
     system: System = System()
-    OpenAIAuths.update_forward_refs()
+    AuthAccounts.update_forward_refs()
 
     @staticmethod
     def __load_json_config() -> Config:
