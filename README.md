@@ -211,12 +211,6 @@ queued_notice_size = 3
 # 新消息进入队列时，发送的通知。 queue_size 是当前排队的消息数
 queued_notice = "消息已收到！当前我还有{queue_size}条消息要回复，请您稍等。"
 
-[system]
-# 是否自动同意进群邀请
-accept_group_invite = false
-
-# 是否自动同意好友请求
-accept_friend_request = false
 ```
 
 ### 多账号支持  

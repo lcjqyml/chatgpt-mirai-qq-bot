@@ -33,7 +33,7 @@ async def chatgpt_v3_ask(data=JSONBody(), session_id=PathValue(), time=""):
 
 @request_map("/poe/chatbot/ask/{bot_name}", method=["post"])
 async def chatgpt_poe_ask(data=JSONBody(), bot_name=PathValue(), time=""):
-    return await ask(data=data, bot_id=bot_name, time=time, api_version=None)
+    return await ask(data=data, bot_id=bot_name, time=time, api_version=Constants.POE_API.value)
 
 
 @request_map("/v_/chatbot/ask/{session_id}", method=["post"])

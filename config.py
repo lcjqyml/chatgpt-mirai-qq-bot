@@ -179,19 +179,10 @@ class Response(BaseModel):
     """新消息进入队列时，发送的通知。 queue_size 是当前排队的消息数"""
 
 
-class System(BaseModel):
-    accept_group_invite: bool = False
-    """自动接收邀请入群请求"""
-
-    accept_friend_request: bool = False
-    """自动接收好友请求"""
-
-
 class Config(BaseModel):
     openai: Union[AuthAccounts, OpenAIEmailAuth, OpenAISessionTokenAuth, OpenAIAccessTokenAuth, OpenAIAPIKey, PoeAuth]
     trigger: Trigger = Trigger()
     response: Response = Response()
-    system: System = System()
     AuthAccounts.update_forward_refs()
 
     @staticmethod
