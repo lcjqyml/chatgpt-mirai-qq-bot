@@ -317,7 +317,7 @@ class BotManager:
             if len(self.v3bots) == 0:
                 return False
         elif api_version == Constants.POE_API.value:
-            self.poe_bots = [bot for bot in self.v3bots if bot.is_running()]
+            self.poe_bots = [bot for bot in self.poe_bots if bot.is_running()]
             self.bots = self.v1bots + self.v2bots + self.v3bots + self.poe_bots
             if len(self.poe_bots) == 0:
                 return False
