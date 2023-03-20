@@ -114,9 +114,10 @@ class BotManager:
 
     def login(self):
         for i, account in enumerate(self.accounts):
-            logger.info("正在登录第 {i} 个 OpenAI 账号", i=i + 1)
+            logger.info("正在登录第 {i} 个账号", i=i + 1)
             try:
                 if account.is_openai_auth():
+                    logger.info("正在登录第 {i} 个账号", i=i + 1)
                     if account.api_version == Constants.V1_API.value:
                         bot = self.__login_v1(account)
                         bot.id = i
