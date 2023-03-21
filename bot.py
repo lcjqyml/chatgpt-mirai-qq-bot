@@ -60,8 +60,6 @@ async def handle_message(bot_id: str, message: str, api_version: str = None) -> 
         try:
             # 重置会话
             if message.strip() in config.trigger.reset_command:
-                if session.is_poe_api():
-                    return config.response.reset_poe, get_session_summary(session)
                 session.reset_conversation()
                 if session.is_chat_mode():
                     return config.response.reset_chat.format(system_prompt=session.get_system_prompt()), \

@@ -99,6 +99,7 @@ class ChatSession:
                 self.poe_bot = session_bot
             else:
                 self.poe_bot = PoeBots.parse(self.chatbot.account_info["default_bot_name"])
+            self.chatbot.bot.send_chat_break(self.poe_bot.name)
 
     def get_system_prompt(self):
         """获取system_prompt"""
@@ -147,7 +148,7 @@ class ChatSession:
             elif conversation_size == 2:
                 self.chatbot.bot.rollback(1, convo_id=self.session_id)
         elif self.is_poe_api():
-            return False
+            self.chatbot.bot.purge_conversation(self.poe_bot.name, 2)
         return True
 
     def check_and_reset_conversation(self):

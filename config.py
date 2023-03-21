@@ -137,9 +137,6 @@ class Response(BaseModel):
     reset_qa = "会话已重置，当前为问答模式（省钱模式-_-!），无上下文，可谨慎输入\"聊天模式\"进入交互。"
     """重置为问答模式后发送的消息"""
 
-    reset_poe = "poe模式暂不支持重置消息"
-    """重置poe模式时发送的消息"""
-
     ping_v1 = "当前会话ID：{session_id}\napi版本：{api_version}\n上次交互时间：{last_operation_time}"
     """v1接口ping返回值模板"""
 
