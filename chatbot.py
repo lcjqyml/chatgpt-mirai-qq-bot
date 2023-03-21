@@ -172,9 +172,6 @@ class ChatSession:
                 bot.parent_id = self.parent_id
                 resp = await loop.run_in_executor(None, self.v1_ask, message, self.conversation_id, self.parent_id)
                 self.conversation_id = resp["conversation_id"]
-                if self.conversation_id is None and self.chatbot.account.title_pattern:
-                    self.chatbot.bot.change_title(self.conversation_id,
-                                                  self.chatbot.account.title_pattern.format(session_id=self.session_id))
                 self.parent_id = resp["parent_id"]
                 return resp["message"]
             elif self.is_v3_api():

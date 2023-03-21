@@ -1,34 +1,11 @@
-# ChatGPT Mirai QQ Bot
-
-**一款使用 OpenAI 的聊天api服务！**  
-
-![Github stars](https://badgen.net/github/stars/lss233/chatgpt-mirai-qq-bot?icon=github&label=stars)
-[![Docker build latest](https://github.com/lss233/chatgpt-mirai-qq-bot/actions/workflows/docker-latest.yml/badge.svg?branch=browser-version)](https://github.com/lss233/chatgpt-mirai-qq-bot/actions/workflows/docker-latest.yml)
-[![Docker Pulls](https://badgen.net/docker/pulls/lss233/chatgpt-mirai-qq-bot?icon=docker&label=pulls)](https://hub.docker.com/r/lss233/chatgpt-mirai-qq-bot/)
-[![Docker Image Size](https://badgen.net/docker/size/lss233/chatgpt-mirai-qq-bot/browser-version/amd64?icon=docker&label=image%20size)](https://hub.docker.com/r/lss233/chatgpt-mirai-qq-bot/)
-
-***
-
-如果你自己也有做机器人的想法，可以看看下面这些项目：
- - [Ariadne](https://github.com/GraiaProject/Ariadne) - 一个优雅且完备的 Python QQ 机器人框架 （主要是这个 ！！！）
- - [mirai-api-http](https://github.com/project-mirai/mirai-api-http) - 提供HTTP API供所有语言使用 mirai QQ 机器人
- - [Reverse Engineered ChatGPT by OpenAI](https://github.com/acheong08/ChatGPT) - 非官方 ChatGPT Python 支持库  
-
-本项目基于以上项目开发，所以你可以给他们也点个 star ！
-
 ## ⚙ 配置文件完整介绍
+参考 `config-example.cfg` 调整配置文件。将其复制为 `config.cfg`，然后修改 `config.cfg`。
 
-参考 `config.example.cfg` 调整配置文件。将其复制为 `config.cfg`，然后修改 `config.cfg`。
-
-配置文件主要包含 OpenAI 的登录信息。
-
+配置文件主要包含登录信息。
 ```properties
 # 请注意：以 "#" 开头的文本均为注释
 # 不会被程序读取
 # 如果你想要使用某个设置，请确保前面没有 "#" 号
-
-[openai]
-# OpenAI 相关设置
 
 # 第 1 个 OpenAI 账号的登录信息
 [[openai.accounts]]
@@ -215,7 +192,7 @@ queued_notice = "消息已收到！当前我还有{queue_size}条消息要回复
 
 ### 多账号支持  
 
-你可以登录多个不同的 OpenAI 账号，当机器人开始产生新对话时，我们会从你登录的账号中选择**一个**来使用 ChatGPT 和用户聊天。 
+你可以登录多个不同的账号，当机器人开始产生新对话时，我们会从你登录的账号中选择**一个**来和用户聊天。 
 
 一个对话会绑定在一个号上，所以你不必担心丢失上下文的问题。  
 
@@ -242,11 +219,13 @@ queued_notice = "消息已收到！当前我还有{queue_size}条消息要回复
 启动服务并监听8080端口，服务提供接口：
 ```
 # v1 免费接口，暂不可用
-POST /v1/chatgpt/ask/{session_id}?time={timestamp}
-# v3 官方API接口，目前访问gpt-3.5-turbo模型
-POST /v3/chatgpt/ask/{session_id}?time={timestamp}
+POST /v1/chatbot/ask/{session_id}?time={timestamp}
+# v3 官方API接口
+POST /v3/chatbot/ask/{session_id}?time={timestamp}
+# poe 接口，访问poe.com
+POST /poe/chatbot/ask/{bot_name}?time={timestamp}
 # 不指定接口，哪个可用用哪个
-POST /v_/chatgpt/ask/{session_id}?time={timestamp}
+POST /v_/chatbot/ask/{session_id|bot_name}?time={timestamp}
 ``` 
 
 请求body接受json，如下：
@@ -258,13 +237,20 @@ POST /v_/chatgpt/ask/{session_id}?time={timestamp}
 返回json，如下：
 ```json
 {
-  "success": "会话已重置。"
+  "success": "会话已重置。",
+  "session_summary": "{'api_version': 'V3', 'interactive_mode': '问答模式', 'token_info': '8/4000'}"
 }
 ```
-内置以下命令与规则：
-* ping，固定返回服务状态信息，用于检测服务是否健在；
-* 其他如重置会话、回滚会话，参考上面可配置项
-* session_id、time、message三个参数一致时，会直接返回skip，避免重复请求；
+默认包含以下命令与规则：
+* ping - 返回服务状态信息，用于检测服务是否健在；不同版本api返回的信息稍有不同；
+* 重置会话 - 清空上下文，多个账号还会检测bot并重选bot进行交互；
+* 回滚会话 - 删除与bot的最近两条交互记录；
+* v1、V1 - 切换至ChatGPT代理访问，免费、慢、不稳定；不同session有不同的上下文；
+* v3、V3 - 切换至OpenAI官方API访问，付费、快、稳定；不同session有不同的上下文；
+  * 问答模式 - 不会保存上下文；
+  * 聊天模式 - 保持上下文，2小时内无交互则重置为问答模式；
+* poe、POE - 切换至poe.com进行代理访问，免费、快、稳定；同一bot共享上下文；
+* session_id|bot_name、time、message三个参数一致时，会直接返回skip，避免重复请求；
 
 #### 邮箱密码登录
 
@@ -358,31 +344,3 @@ proxy="http://127.0.0.1:1080"
 # 后面别的东西
 
 ```
-
-
-### 对话标题自动重命名 
-
-如果你的账号产生了太多的对话，看着不舒服，可以开启配置文件中的标题自动重命名和。  
-
-```
-[[openai.accounts]]
-# 省略的账号信息
-
-title_pattern="qq-{session_id}"
-```  
-
-当你按照这个格式进行设置之后，新创建的对话将会以 `qq-friend-好友QQ` 或 `qq-group-群号` 进行命名。
-
-这里的 `{session_id}` 是一个变量，它在程序启动之后会根据聊天信息的发送者动态变化。  
-
-* 如果是一个好友给机器人发送消息，则 `{session_id}` 会变成 `qq-friend-好友QQ`  
-
-* 如果是一个群聊给机器人发送消息，则 `{session_id}` 会变成 `qq-group-群号`  
-
-## 🎈 相似项目
-
-除了我们以外，还有这些很出色的项目：  
-
-* [LlmKira / Openaibot](https://github.com/LlmKira/Openaibot) - 全平台，多模态理解的 OpenAI 机器人
-* [RockChinQ / QChatGPT](https://github.com/RockChinQ/QChatGPT) - 基于 OpenAI 官方 API， 使用 GPT-3 的 QQ 机器人
-* [fuergaosi233 / wechat-chatgpt](https://github.com/fuergaosi233/wechat-chatgpt) - 在微信上迅速接入 ChatGPT
