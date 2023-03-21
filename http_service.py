@@ -60,7 +60,9 @@ async def ask(data=JSONBody(), bot_id=None, time="", api_version: str = None):
 
 
 def main(*args):
-    await login_openai()
+    task_list = [login_openai()]
+    loops = asyncio.get_event_loop()
+    loops.run_until_complete(asyncio.wait(task_list))
     server.start(host="", port=8080)
 
 
