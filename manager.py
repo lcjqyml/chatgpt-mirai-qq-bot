@@ -117,7 +117,6 @@ class BotManager:
             logger.info("正在登录第 {i} 个账号", i=i + 1)
             try:
                 if account.is_openai_auth():
-                    logger.info("正在登录第 {i} 个账号", i=i + 1)
                     if account.api_version == Constants.V1_API.value:
                         bot = self.__login_v1(account)
                         bot.id = i
