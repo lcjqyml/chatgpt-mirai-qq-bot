@@ -342,3 +342,11 @@ class BotManager:
             raise Exception("No available bot.")
         self.roundrobin = itertools.cycle(self.bots)
         return next(self.roundrobin)
+
+    @staticmethod
+    def reset_poe_bot(chatbot: BotInfo) -> BotInfo:
+        bot = PoeChatbot(chatbot.account_info["p_b_token"])
+        if BotManager.check_auth(bot):
+            chatbot.bot = bot
+            return chatbot
+        raise Exception("Can not reset bot!")

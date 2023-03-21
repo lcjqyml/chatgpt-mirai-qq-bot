@@ -29,6 +29,7 @@ class ChatSession:
     poe_bot: PoeBots = None
 
     def __init__(self, session_id, api_version: str = None):
+        self.retry = 0
         self.last_operation_time = None
         self.session_id = session_id
         self.prev_conversation_id = []
@@ -82,6 +83,7 @@ class ChatSession:
         self.chatbot = botManager.pick(self.api_version)
         self.api_version = self.chatbot.api_version
         self.last_operation_time = None
+        self.retry = 0
         if self.is_v1_api():
             self.chatbot.reset(self.conversation_id)
             self.conversation_id = None
@@ -127,12 +129,20 @@ class ChatSession:
 
     def poe_ask(self, prompt):
         """向poe.com发送提问"""
-        final_resp = None
-        for final_resp in self.chatbot.bot.send_message(chatbot=self.poe_bot.name, message=prompt):
-            pass
-        if final_resp is None:
-            raise Exception("OpenAI 在返回结果时出现了错误")
-        return final_resp["text"]
+        try:
+            final_resp = None
+            for final_resp in self.chatbot.bot.send_message(chatbot=self.poe_bot.name, message=prompt):
+                pass
+            if final_resp is None:
+                raise Exception("OpenAI 在返回结果时出现了错误")
+            resp = final_resp["text"]
+            self.retry = 0
+            return resp
+        except KeyError as e:
+            if 'messages' in str(e) and self.retry <= 2:
+                self.chatbot = BotManager.reset_poe_bot(self.chatbot)
+                self.retry += 1
+                self.poe_ask(prompt)
 
     def rollback_conversation(self) -> bool:
         """回滚会话"""
