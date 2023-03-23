@@ -13,7 +13,8 @@ import OpenAIAuth
 import urllib3.exceptions
 from loguru import logger
 from requests.exceptions import SSLError
-from revChatGPT.V1 import Chatbot as V1Chatbot, Error as V1Error
+from revChatGPT.typing import ChatbotError
+from revChatGPT.V1 import Chatbot as V1Chatbot
 from revChatGPT.V3 import Chatbot as V3Chatbot
 from poe import Client as PoeChatbot
 from tinydb import TinyDB, Query
@@ -54,7 +55,7 @@ class BotInfo(asyncio.Lock):
             if convo_id is not None:
                 try:
                     self.bot.delete_conversation(convo_id)
-                except V1Error as e:
+                except ChatbotError as e:
                     logger.warning(f"Failed to delete conversation: {convo_id}")
         elif isinstance(self.bot, V3Chatbot):
             if no_system_prompt:
