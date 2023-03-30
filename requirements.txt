@@ -14,4 +14,4 @@ urllib3~=1.26.15
 wechaty~=0.10.7
 
 simple_http_server~=0.19.6
-poe-api~=0.1.4
+poe-api~=0.2.4
