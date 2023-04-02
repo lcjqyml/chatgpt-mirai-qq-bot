@@ -1,4 +1,4 @@
-revChatGPT==4.0.6.1
+revChatGPT==4.1.1.1
 toml~=0.10.2
 tinydb~=4.7.1
 

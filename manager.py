@@ -277,7 +277,7 @@ class BotManager:
             response = bot.get_conversations(0, 1)
             logger.debug(f"v1 bot is running. Top conversation -> {str(response)}")
             return True
-        except (V1Error, KeyError) as e:
+        except (ChatbotError, KeyError) as e:
             return False
 
     @staticmethod
