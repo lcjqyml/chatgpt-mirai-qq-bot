@@ -13,5 +13,5 @@ OpenAIAuth~=0.3.2
 urllib3~=1.26.15
 wechaty~=0.10.7
 
-simple_http_server~=0.19.6
 poe-api~=0.2.4
+flask~=2.2.3

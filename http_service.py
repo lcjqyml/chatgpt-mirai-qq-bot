@@ -1,17 +1,14 @@
 import asyncio
 import json
 import os
-import re
 import sys
 from collections import deque
 
-import simple_http_server.server as server
+from flask import Flask, request
 from loguru import logger
-from bot import handle_message
-from simple_http_server import JSONBody, PathValue
-from simple_http_server import request_map
 
 import chatbot
+from bot import handle_message
 from config import Config
 from pojo.Constants import Constants
 
@@ -19,37 +16,40 @@ sys.path.append(os.getcwd())
 
 config = Config.load_config()
 processed_messages = deque(maxlen=100)
+app = Flask(__name__)
 
 
-@request_map("/v1/chatbot/ask/{session_id}", method=["post"])
-async def chatgpt_v1_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, bot_id=session_id, time=time, api_version=Constants.V1_API.value)
+@app.route("/v1/chatbot/ask/<session_id>", methods=["post"])
+async def chatgpt_v1_ask(session_id):
+    return await ask(bot_id=session_id, api_version=Constants.V1_API.value)
 
 
-@request_map("/v3/chatbot/ask/{session_id}", method=["post"])
-async def chatgpt_v3_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, bot_id=session_id, time=time, api_version=Constants.V3_API.value)
+@app.route("/v3/chatbot/ask/<session_id>", method=["post"])
+async def chatgpt_v3_ask(session_id):
+    return await ask(bot_id=session_id, api_version=Constants.V3_API.value)
 
 
-@request_map("/poe/chatbot/ask/{bot_name}", method=["post"])
-async def chatgpt_poe_ask(data=JSONBody(), bot_name=PathValue(), time=""):
-    return await ask(data=data, bot_id=bot_name, time=time, api_version=Constants.POE_API.value)
+@app.route("/poe/chatbot/ask/<bot_name>", method=["post"])
+async def chatgpt_poe_ask(bot_name):
+    return await ask(bot_id=bot_name, api_version=Constants.POE_API.value)
 
 
-@request_map("/v_/chatbot/ask/{session_id}", method=["post"])
-async def chatgpt_v_ask(data=JSONBody(), session_id=PathValue(), time=""):
-    return await ask(data=data, bot_id=session_id, time=time, api_version=None)
+@app.route("/v_/chatbot/ask/{session_id}", method=["post"])
+async def chatgpt_v_ask(session_id):
+    return await ask(bot_id=session_id, api_version=None)
 
 
-async def ask(data=JSONBody(), bot_id=None, time="", api_version: str = None):
-    message = bot_id + "[" + time + "]: " + data['message']
+async def ask(bot_id=None, api_version: str = None):
+    request_message = request.json.get("message")
+    request_time = request.args.get("time")
+    message = bot_id + "[" + request_time + "]: " + request_message
     logger.info("API[" + (api_version if api_version else "_") + "]: " + message)
     session_summary = ""
     if message in processed_messages:
         response = "skip"
     else:
         # JSONBody 是 dict 的子类，你可以直接其是一个 dict 来使用
-        response, session_summary = await handle_message(bot_id=bot_id, message=data['message'],
+        response, session_summary = await handle_message(bot_id=bot_id, message=request_message,
                                                          api_version=api_version)
         processed_messages.append(message)
     logger.info(response)
@@ -59,11 +59,11 @@ async def ask(data=JSONBody(), bot_id=None, time="", api_version: str = None):
     return response_obj
 
 
-def main(*args):
+def main():
     task_list = [login_openai()]
     loops = asyncio.get_event_loop()
     loops.run_until_complete(asyncio.wait(task_list))
-    server.start(host="", port=8080)
+    app.run(host="0.0.0.0", port=8080, debug=True)
 
 
 async def login_openai():
