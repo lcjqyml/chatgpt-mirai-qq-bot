@@ -2,6 +2,8 @@ from enum import Enum
 from typing import Generator
 
 import asyncio
+from loguru import logger
+from poe import Client as PoeClient
 
 from adapter.botservice import BotAdapter
 from constants import botManager
@@ -32,6 +34,13 @@ class PoeBot(Enum):
         )
 
 
+class PoeClientWrapper:
+    def __init__(self, client_id: int, client: PoeClient, p_b: str):
+        self.client_id = client_id
+        self.client = client
+        self.p_b = p_b
+
+
 class PoeAdapter(BotAdapter):
 
     def __init__(self, session_id: str = "unknown", poe_bot: PoeBot = None):
@@ -39,25 +48,59 @@ class PoeAdapter(BotAdapter):
         super().__init__(session_id)
         self.session_id = session_id
         self.poe_bot = poe_bot or PoeBot.ChatGPT
-        self.poe_client = botManager.pick("poe-web")
+        self.poe_client: PoeClientWrapper = botManager.pick("poe-web")
+        self.process_retry = 0
 
     async def ask(self, msg: str) -> Generator[str, None, None]:
         # sourcery skip: raise-specific-error
-        """向 AI 发送消息"""
-        final_resp = None
-        while None in self.poe_client.active_messages.values():
-            await asyncio.sleep(0.01)
-        for final_resp in self.poe_client.send_message(chatbot=self.poe_bot.value, message=msg):
+        try:
+            """向 AI 发送消息"""
+            final_resp = None
+            while None in self.poe_client.client.active_messages.values():
+                await asyncio.sleep(0.01)
+            for final_resp in self.poe_client.client.send_message(chatbot=self.poe_bot.value, message=msg):
+                yield final_resp["text"]
+            if final_resp is None:
+                raise Exception("Poe 在返回结果时出现了错误")
             yield final_resp["text"]
-        if final_resp is None:
-            raise Exception("Poe 在返回结果时出现了错误")
-        yield final_resp["text"]
+            self.process_retry = 0
+        except Exception as e:
+            logger.warning(f"Poe connection error {str(e)}")
+            if self.process_retry <= 3:
+                new_poe_client = botManager.reset_bot(self.poe_client)
+                self.poe_client = new_poe_client
+                self.process_retry += 1
+                async for resp in self.ask(msg):
+                    yield resp
+            else:
+                raise e
 
     async def rollback(self):
         """回滚对话"""
-        self.poe_client.purge_conversation(self.poe_bot.value, 2)
+        try:
+            self.poe_client.client.purge_conversation(self.poe_bot.value, 2)
+            self.process_retry = 0
+        except Exception as e:
+            logger.warning(f"Poe connection error {str(e)}")
+            if self.process_retry <= 3:
+                new_poe_client = botManager.reset_bot(self.poe_client)
+                self.poe_client = new_poe_client
+                self.process_retry += 1
+                await self.rollback()
+            else:
+                raise e
 
     async def on_reset(self):
         """当会话被重置时，此函数被调用"""
-        self.poe_client.send_chat_break(self.poe_bot.value)
- 
+        try:
+            self.poe_client.client.send_chat_break(self.poe_bot.value)
+            self.process_retry = 0
+        except Exception as e:
+            logger.warning(f"Poe connection error {str(e)}")
+            if self.process_retry <= 3:
+                new_poe_client = botManager.reset_bot(self.poe_client)
+                self.poe_client = new_poe_client
+                self.process_retry += 1
+                await self.on_reset()
+            else:
+                raise e
