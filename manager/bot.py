@@ -13,7 +13,6 @@ from aiohttp import ClientConnectorError
 from httpx import ConnectTimeout
 from loguru import logger
 from poe import Client as PoeClient
-from adapter.quora.poe import PoeClientWrapper
 from requests.exceptions import SSLError, RequestException
 from revChatGPT import V1
 from revChatGPT.V1 import AsyncChatbot as V1Chatbot
@@ -143,6 +142,7 @@ class BotManager:
                 self.config.response.default_ai = 'chatgpt-web'
 
     def reset_bot(self, bot):
+        from adapter.quora.poe import PoeClientWrapper
         if isinstance(bot, PoeClientWrapper):
             bot_id = bot.client_id
             self.bots["poe-web"] = [x for x in self.bots["poe-web"] if x.client_id != bot_id]
@@ -197,6 +197,7 @@ class BotManager:
             return False
 
     def login_poe(self):
+        from adapter.quora.poe import PoeClientWrapper
         try:
             for i, account in enumerate(self.poe):
                 logger.info("正在解析第 {i} 个 poe web 账号", i=i + 1)
