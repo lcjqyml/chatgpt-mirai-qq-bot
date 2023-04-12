@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 from typing import Generator
 
@@ -39,6 +40,7 @@ class PoeClientWrapper:
         self.client_id = client_id
         self.client = client
         self.p_b = p_b
+        self.last_ask_time = None
 
 
 class PoeAdapter(BotAdapter):
@@ -52,7 +54,7 @@ class PoeAdapter(BotAdapter):
         self.process_retry = 0
 
     async def ask(self, msg: str) -> Generator[str, None, None]:
-        # sourcery skip: raise-specific-error
+        self.check_and_reset_client()
         try:
             """向 AI 发送消息"""
             final_resp = None
@@ -64,6 +66,7 @@ class PoeAdapter(BotAdapter):
                 raise Exception("Poe 在返回结果时出现了错误")
             yield final_resp["text"]
             self.process_retry = 0
+            self.poe_client.last_ask_time = time.time()
         except Exception as e:
             logger.warning(f"Poe connection error {str(e)}")
             if self.process_retry <= 3:
@@ -74,6 +77,13 @@ class PoeAdapter(BotAdapter):
                     yield resp
             else:
                 raise e
+
+    def check_and_reset_client(self):
+        current_time = time.time()
+        last_ask_time = self.poe_client.last_ask_time
+        if last_ask_time and current_time - last_ask_time > 3600:
+            new_poe_client = botManager.reset_bot(self.poe_client)
+            self.poe_client = new_poe_client
 
     async def rollback(self):
         """回滚对话"""

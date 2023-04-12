@@ -144,6 +144,7 @@ class BotManager:
     def reset_bot(self, bot):
         from adapter.quora.poe import PoeClientWrapper
         if isinstance(bot, PoeClientWrapper):
+            logger.info("Try to reset poe client.")
             bot_id = bot.client_id
             self.bots["poe-web"] = [x for x in self.bots["poe-web"] if x.client_id != bot_id]
             p_b = bot.p_b
