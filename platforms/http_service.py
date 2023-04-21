@@ -11,6 +11,7 @@ from quart import Quart, request
 
 from constants import config
 from universal import handle_message
+from utils.azure_tts import encode_to_silk
 
 app = Quart(__name__)
 
@@ -24,10 +25,11 @@ RESPONSE_DONE = "DONE"
 
 
 class BotRequest:
-    def __init__(self, session_id, username, message, request_time):
+    def __init__(self, session_id, username, message, request_time, silk_voice):
         self.session_id: str = session_id
         self.username: str = username
         self.message: str = message
+        self.silk_voice: bool = silk_voice
         self.result: ResponseResult = ResponseResult()
         self.request_time = request_time
         self.done: bool = False
@@ -93,8 +95,12 @@ async def process_request(bot_request: BotRequest):
             elif isinstance(ele, Image):
                 bot_request.append_result("image", f"data:image/png;base64,{ele.base64}")
             elif isinstance(ele, Voice):
-                # mp3
-                bot_request.append_result("voice", f"data:audio/mpeg;base64,{ele.base64}")
+                if bot_request.silk_voice:
+                    ele = Voice(data_bytes=await encode_to_silk(await ele.get_bytes()))
+                    bot_request.append_result("voice", f"data:audio/silk;base64,{ele.base64}")
+                else:
+                    # mp3
+                    bot_request.append_result("voice", f"data:audio/mpeg;base64,{ele.base64}")
             else:
                 logger.warning(f"Unsupported message -> {type(ele)} -> {str(ele)}")
                 bot_request.append_result("message", str(ele))
@@ -170,9 +176,10 @@ def construct_bot_request(data):
     session_id = data.get('session_id') or "friend-default_session"
     username = data.get('username') or "某人"
     message = data.get('message')
+    silk_voice = bool(data.get('silk_voice')) or False
     logger.info(f"Get message from {session_id}[{username}]:\n{message}")
     with lock:
-        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)))
+        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), silk_voice)
     return bot_request
 
 

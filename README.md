@@ -181,6 +181,7 @@ debug = false
 |session_id| 是 | String |会话ID，默认：`friend-default_session`|
 |username| 是 | String |用户名，默认：`某人`|
 |message| 是 | String |消息，不能为空|  
+|silk_voice| 否 | Bool |是否返回silk语音，默认：否|  
 
 **请求示例**
 ```json
@@ -216,7 +217,8 @@ debug = false
 |:---|:---|:---|:---|
 |session_id| 是 | String |会话ID，默认：`friend-default_session`|
 |username| 是 | String |用户名，默认：`某人`|
-|message| 是 | String |消息，不能为空|  
+|message| 是 | String |消息，不能为空|
+|silk_voice| 否 | Bool |是否返回silk语音，默认：否|  
 
 **请求示例**
 ```json
