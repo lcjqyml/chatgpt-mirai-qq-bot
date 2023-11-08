@@ -24,14 +24,18 @@ RESPONSE_DONE = "DONE"
 
 
 class BotRequest:
-    def __init__(self, session_id, username, message, request_time):
+    def __init__(self, session_id, username, message, request_time, audio):
         self.session_id: str = session_id
         self.username: str = username
         self.message: str = message
         self.result: ResponseResult = ResponseResult()
         self.request_time = request_time
+        self.audio = audio
         self.done: bool = False
         """请求是否处理完毕"""
+
+    def no_message(self):
+        return self.message is None or not str(self.message).strip()
 
     def set_result_status(self, result_status):
         if not self.result:
@@ -99,10 +103,13 @@ async def process_request(bot_request: BotRequest):
                 logger.warning(f"Unsupported message -> {type(ele)} -> {str(ele)}")
                 bot_request.append_result("message", str(ele))
     logger.debug(f"Start to process bot request {bot_request.request_time}.")
-    if bot_request.message is None or not str(bot_request.message).strip():
-        await response("message 不能为空!")
+    if bot_request.no_message() and not bot_request.audio:
+        await response("message 和 audio 不能同时为空!")
         bot_request.set_result_status(RESPONSE_FAILED)
     else:
+        if bot_request.no_message() and bot_request.audio:
+            from utils.speech_to_text import speech_to_text
+            bot_request.message = speech_to_text(bot_request.audio)
         await handle_message(
             response,
             bot_request.session_id,
@@ -119,7 +126,17 @@ async def process_request(bot_request: BotRequest):
 async def v1_chat():
     """同步请求，等待处理完毕返回结果"""
     data = await request.get_json()
-    bot_request = construct_bot_request(data)
+    audio = (await request.files).get('audio')
+    if not data.get('message') and not audio:
+        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+    if not data.get('message') and audio:
+        # 获取音频文件的内容类型
+        content_type = audio.content_type
+        # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
+        if content_type not in ['audio/aiff', 'audio/wav', 'audio/flac']:
+            return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
+        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+    bot_request = construct_bot_request(data, audio)
     await process_request(bot_request)
     # Return the result as JSON
     return bot_request.result.to_json()
@@ -129,7 +146,10 @@ async def v1_chat():
 async def v2_chat():
     """异步请求，立即返回，通过/v2/chat/response获取内容"""
     data = await request.get_json()
-    bot_request = construct_bot_request(data)
+    audio = (await request.files).get('audio')
+    if not data.get('message') and not audio:
+        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+    bot_request = construct_bot_request(data, audio)
     asyncio.create_task(process_request(bot_request))
     request_dic[bot_request.request_time] = bot_request
     # Return the result time as request_id
@@ -167,13 +187,13 @@ def clear_request_dict():
         time.sleep(60)
 
 
-def construct_bot_request(data):
+def construct_bot_request(data, audio):
     session_id = data.get('session_id') or "friend-default_session"
     username = data.get('username') or "某人"
     message = data.get('message')
     logger.info(f"Get message from {session_id}[{username}]:\n{message}")
     with lock:
-        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)))
+        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
     return bot_request
 
 
