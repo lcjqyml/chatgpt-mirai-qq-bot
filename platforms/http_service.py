@@ -138,33 +138,37 @@ def construct_bot_request(data, audio):
 
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
-    """同步请求，等待处理完毕返回结果"""
-    # 获取请求的Content-Type
-    content_type = request.content_type
-    if content_type == 'application/json':
-        # 获取json数据
-        data = await request.get_json()
-    else:
-        # 获取表单数据
-        data = await request.form
-    logger.info(1)
-    audio = (await request.files).get('audio')
-    logger.info(f"1.5 - {audio}")
-    if not data['message'] and not audio:
-        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-    if not data['message'] and audio:
-        # 获取音频文件的内容类型
-        content_type = audio.content_type
-        # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
-        if content_type not in ['audio/aiff', 'audio/wav', 'audio/flac']:
-            return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
-        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-    logger.info(2)
-    bot_request = construct_bot_request(data, audio)
-    logger.info(3)
-    await process_request(bot_request)
-    # Return the result as JSON
-    return bot_request.result.to_json()
+    try:
+        """同步请求，等待处理完毕返回结果"""
+        # 获取请求的Content-Type
+        content_type = request.content_type
+        if content_type == 'application/json':
+            # 获取json数据
+            data = await request.get_json()
+        else:
+            # 获取表单数据
+            data = await request.form
+        logger.info(1)
+        audio = (await request.files).get('audio')
+        logger.info(f"1.5 - {audio}")
+        if not data['message'] and not audio:
+            return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+        if not data['message'] and audio:
+            # 获取音频文件的内容类型
+            content_type = audio.content_type
+            # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
+            if content_type not in ['audio/aiff', 'audio/wav', 'audio/flac']:
+                return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
+            return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+        logger.info(2)
+        bot_request = construct_bot_request(data, audio)
+        logger.info(3)
+        await process_request(bot_request)
+        # Return the result as JSON
+        return bot_request.result.to_json()
+    except Exception as e:
+        logger.error(f"未知错误: {e}")
+        return ResponseResult(message="未知错误，请联系管理员！", result_status=RESPONSE_FAILED).to_json()
 
 
 @app.route('/v2/chat', methods=['POST'])
