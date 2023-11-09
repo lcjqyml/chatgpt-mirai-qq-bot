@@ -122,19 +122,6 @@ async def process_request(bot_request: BotRequest):
     logger.debug(f"Bot request {bot_request.request_time} done.")
 
 
-@app.before_request
-async def get_request_data():
-    # 获取请求的Content-Type
-    content_type = request.content_type
-    if content_type == 'application/json':
-        # 获取json数据
-        data = await request.get_json()
-    else:
-        # 获取表单数据
-        data = request.form
-    return data
-
-
 def construct_bot_request(data, audio):
     session_id = data.get('session_id') or "friend-default_session"
     username = data.get('username') or "某人"
@@ -148,7 +135,14 @@ def construct_bot_request(data, audio):
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
     """同步请求，等待处理完毕返回结果"""
-    data = await get_request_data()
+    # 获取请求的Content-Type
+    content_type = request.content_type
+    if content_type == 'application/json':
+        # 获取json数据
+        data = await request.get_json()
+    else:
+        # 获取表单数据
+        data = request.form
     audio = (await request.files).get('audio')
     if not data.get('message') and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
@@ -168,7 +162,14 @@ async def v1_chat():
 @app.route('/v2/chat', methods=['POST'])
 async def v2_chat():
     """异步请求，立即返回，通过/v2/chat/response获取内容"""
-    data = await get_request_data()
+    # 获取请求的Content-Type
+    content_type = request.content_type
+    if content_type == 'application/json':
+        # 获取json数据
+        data = await request.get_json()
+    else:
+        # 获取表单数据
+        data = request.form
     audio = (await request.files).get('audio')
     if not data.get('message') and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
