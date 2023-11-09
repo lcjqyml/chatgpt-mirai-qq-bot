@@ -2,14 +2,13 @@ import speech_recognition as sr
 from loguru import logger
 from werkzeug.datastructures import FileStorage
 import os
-import random
-import string
+import time
 
 
 def get_random_name(speech_file):
-    random_name = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+    current_time = int(time.time() * 1000)
     file_extension = os.path.splitext(speech_file.filename)[1]
-    return f'/tmp/{random_name}{file_extension}'
+    return f'/tmp/{current_time}{file_extension}'
 
 
 async def speech_to_text(speech_file):
