@@ -12,14 +12,14 @@ def get_random_name(speech_file):
     return f'/tmp/{random_name}{file_extension}'
 
 
-def speech_to_text(speech_file):
+async def speech_to_text(speech_file):
     logger.info(8)
     if not speech_file:
         return ""
     file_path = speech_file
     if isinstance(file_path, FileStorage):
         file_path = get_random_name(speech_file)
-        speech_file.save(file_path)
+        await speech_file.save(file_path)
     r = sr.Recognizer()
     logger.info(9)
     # 使用AudioFile方法打开音频文件
