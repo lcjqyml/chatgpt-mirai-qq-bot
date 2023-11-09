@@ -156,6 +156,7 @@ async def v1_chat():
         if not data.get('message') and audio:
             # 获取音频文件的内容类型
             content_type = audio.content_type
+            logger.info(f"1.6 - {content_type}")
             # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
             if content_type not in ['audio/aiff', 'audio/wav', 'audio/flac']:
                 return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
