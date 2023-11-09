@@ -125,7 +125,7 @@ async def process_request(bot_request: BotRequest):
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
     """同步请求，等待处理完毕返回结果"""
-    data = await request.get_json()
+    data = await get_request_data()
     audio = (await request.files).get('audio')
     if not data.get('message') and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
@@ -145,7 +145,7 @@ async def v1_chat():
 @app.route('/v2/chat', methods=['POST'])
 async def v2_chat():
     """异步请求，立即返回，通过/v2/chat/response获取内容"""
-    data = await request.get_json()
+    data = await get_request_data()
     audio = (await request.files).get('audio')
     if not data.get('message') and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
@@ -170,6 +170,18 @@ async def v2_chat_response():
         bot_request.result.pop_all()
     logger.debug(f"Bot request {request_id} response -> \n{response[:100]}")
     return response
+
+
+async def get_request_data():
+    # 获取请求的Content-Type
+    content_type = request.content_type
+    if content_type == 'application/json':
+        # 获取json数据
+        data = await request.get_json()
+    else:
+        # 获取表单数据
+        data = request.form
+    return data
 
 
 def clear_request_dict():
