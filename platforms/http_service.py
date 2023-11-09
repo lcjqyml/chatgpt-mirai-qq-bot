@@ -123,9 +123,9 @@ async def process_request(bot_request: BotRequest):
 
 
 def construct_bot_request(data, audio):
-    session_id = data.get('session_id') or "friend-default_session"
-    username = data.get('username') or "某人"
-    message = data.get('message')
+    session_id = data['session_id'] or "friend-default_session"
+    username = data['username'] or "某人"
+    message = data['message']
     logger.info(f"Get message from {session_id}[{username}]:\n{message}")
     with lock:
         bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
@@ -144,9 +144,9 @@ async def v1_chat():
         # 获取表单数据
         data = request.form
     audio = (await request.files).get('audio')
-    if not data.get('message') and not audio:
+    if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-    if not data.get('message') and audio:
+    if not data['message'] and audio:
         # 获取音频文件的内容类型
         content_type = audio.content_type
         # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
@@ -171,7 +171,7 @@ async def v2_chat():
         # 获取表单数据
         data = request.form
     audio = (await request.files).get('audio')
-    if not data.get('message') and not audio:
+    if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
     bot_request = construct_bot_request(data, audio)
     asyncio.create_task(process_request(bot_request))
