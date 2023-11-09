@@ -167,7 +167,7 @@ async def v1_chat():
         # Return the result as JSON
         return bot_request.result.to_json()
     except Exception as e:
-        logger.error(f"未知错误: {e}")
+        logger.exception(e)
         return ResponseResult(message="未知错误，请联系管理员！", result_status=RESPONSE_FAILED).to_json()
 
 
