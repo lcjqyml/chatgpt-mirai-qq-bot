@@ -122,6 +122,7 @@ async def process_request(bot_request: BotRequest):
     logger.debug(f"Bot request {bot_request.request_time} done.")
 
 
+@app.before_request
 async def get_request_data():
     # 获取请求的Content-Type
     content_type = request.content_type
