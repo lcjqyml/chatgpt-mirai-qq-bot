@@ -136,6 +136,17 @@ def construct_bot_request(data, audio):
     return bot_request
 
 
+def get_content_type(audio):
+    from os.path import splitext
+    # 获取文件名
+    filename = audio.filename
+    # 提取文件后缀名
+    file_extension = splitext(filename)[1]
+    # 去除后缀名中的点号
+    file_extension = file_extension.lstrip('.')
+    return file_extension
+
+
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
     try:
@@ -153,6 +164,13 @@ async def v1_chat():
         logger.info(f"1.5 - {audio}")
         if not data.get('message') and not audio:
             return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+        if not data.get('message') and audio:
+            # 获取音频文件的内容类型
+            content_type = get_content_type(audio)
+            logger.info(f"1.6 - {content_type}")
+            # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
+            if content_type not in ['aiff', 'wav', 'flac']:
+                return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
         logger.info(2)
         bot_request = construct_bot_request(data, audio)
         logger.info(3)
