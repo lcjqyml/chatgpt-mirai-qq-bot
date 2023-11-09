@@ -103,13 +103,17 @@ async def process_request(bot_request: BotRequest):
                 logger.warning(f"Unsupported message -> {type(ele)} -> {str(ele)}")
                 bot_request.append_result("message", str(ele))
     logger.debug(f"Start to process bot request {bot_request.request_time}.")
+    logger.info(4)
     if bot_request.no_message() and not bot_request.audio:
+        logger.info(5)
         await response("message 和 audio 不能同时为空!")
         bot_request.set_result_status(RESPONSE_FAILED)
     else:
+        logger.info(6)
         if bot_request.no_message() and bot_request.audio:
             from utils.speech_to_text import speech_to_text
             bot_request.message = speech_to_text(bot_request.audio)
+        logger.info(7)
         await handle_message(
             response,
             bot_request.session_id,
@@ -143,6 +147,7 @@ async def v1_chat():
     else:
         # 获取表单数据
         data = await request.form
+    logger.info(1)
     audio = (await request.files).get('audio')
     if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
@@ -153,7 +158,9 @@ async def v1_chat():
         if content_type not in ['audio/aiff', 'audio/wav', 'audio/flac']:
             return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+    logger.info(2)
     bot_request = construct_bot_request(data, audio)
+    logger.info(3)
     await process_request(bot_request)
     # Return the result as JSON
     return bot_request.result.to_json()
