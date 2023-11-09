@@ -142,7 +142,7 @@ async def v1_chat():
         data = await request.get_json()
     else:
         # 获取表单数据
-        data = request.form
+        data = await request.form
     audio = (await request.files).get('audio')
     if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
@@ -169,7 +169,7 @@ async def v2_chat():
         data = await request.get_json()
     else:
         # 获取表单数据
-        data = request.form
+        data = await request.form
     audio = (await request.files).get('audio')
     if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
