@@ -122,6 +122,28 @@ async def process_request(bot_request: BotRequest):
     logger.debug(f"Bot request {bot_request.request_time} done.")
 
 
+async def get_request_data():
+    # 获取请求的Content-Type
+    content_type = request.content_type
+    if content_type == 'application/json':
+        # 获取json数据
+        data = await request.get_json()
+    else:
+        # 获取表单数据
+        data = request.form
+    return data
+
+
+def construct_bot_request(data, audio):
+    session_id = data.get('session_id') or "friend-default_session"
+    username = data.get('username') or "某人"
+    message = data.get('message')
+    logger.info(f"Get message from {session_id}[{username}]:\n{message}")
+    with lock:
+        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
+    return bot_request
+
+
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
     """同步请求，等待处理完毕返回结果"""
@@ -172,18 +194,6 @@ async def v2_chat_response():
     return response
 
 
-async def get_request_data():
-    # 获取请求的Content-Type
-    content_type = request.content_type
-    if content_type == 'application/json':
-        # 获取json数据
-        data = await request.get_json()
-    else:
-        # 获取表单数据
-        data = request.form
-    return data
-
-
 def clear_request_dict():
     logger.debug("Watch and clean request_dic.")
     while True:
@@ -197,16 +207,6 @@ def clear_request_dict():
         for key in keys_to_delete:
             request_dic.pop(key)
         time.sleep(60)
-
-
-def construct_bot_request(data, audio):
-    session_id = data.get('session_id') or "friend-default_session"
-    username = data.get('username') or "某人"
-    message = data.get('message')
-    logger.info(f"Get message from {session_id}[{username}]:\n{message}")
-    with lock:
-        bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
-    return bot_request
 
 
 async def start_task():
