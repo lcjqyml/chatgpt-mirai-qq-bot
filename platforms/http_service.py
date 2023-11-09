@@ -149,6 +149,7 @@ async def v1_chat():
         data = await request.form
     logger.info(1)
     audio = (await request.files).get('audio')
+    logger.info(f"1.5 - {audio}")
     if not data['message'] and not audio:
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
     if not data['message'] and audio:
