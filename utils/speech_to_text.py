@@ -28,7 +28,7 @@ async def speech_to_text(speech_file):
         audio_data = r.record(source)
     logger.info(11)
     # 使用recognize_google方法将音频数据转换为文字
-    text = r.recognize_google(audio_data)
+    text = r.recognize_google(audio_data, language="zh-CN")
     logger.info(12)
     logger.debug(f"Speech to text done. -> {text}")
     return text
