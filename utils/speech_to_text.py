@@ -1,11 +1,14 @@
-from loguru import logger
-from werkzeug.datastructures import FileStorage
-from constants import config
 import os
+import re
 import time
+
 import soundfile as sf
 import speech_recognition as sr
 from aip import AipSpeech
+from loguru import logger
+from werkzeug.datastructures import FileStorage
+
+from constants import config
 
 
 def init_google_converter():
@@ -24,9 +27,23 @@ baidu_converter = init_baidu_converter()
 google_converter = init_google_converter()
 
 
+def get_content_type(audio_data):
+    # 使用正则表达式提取文件格式
+    match = re.search(r"data:audio/(\w+);", audio_data)
+    file_extension = ""
+    if match:
+        file_extension = match.group(1)
+    return file_extension
+
+
 def get_random_name(speech_file):
     current_time = int(time.time() * 1000)
-    file_extension = os.path.splitext(speech_file.filename)[1].lower()
+    if isinstance(speech_file, FileStorage):
+        file_extension = os.path.splitext(speech_file.filename)[1].lower()
+    elif speech_file.startswith("data:audio"):
+        file_extension = get_content_type(speech_file)
+    else:
+        raise Exception("error file.")
     return f'/tmp/{current_time}{file_extension}'
 
 
@@ -62,6 +79,16 @@ def convert_by_baidu(file_path, language):
         return ""
 
 
+def convert_data_to_file(audio_data, file_path):
+    import base64
+    audio_data = audio_data.split(",")[1]
+    # 使用base64库解码音频数据
+    audio_data = base64.b64decode(audio_data)
+    with open(file_path, "wb") as f:
+        # 将音频数据写入文件
+        f.write(audio_data)
+
+
 def speech_to_text(speech_file, language="zh-CN"):
     if not speech_file:
         return ""
@@ -70,6 +97,9 @@ def speech_to_text(speech_file, language="zh-CN"):
         file_path = get_random_name(speech_file)
         data, _sr = sf.read(speech_file)
         sf.write(file_path, data, _sr)
+    elif speech_file.startswith("data:audio"):
+        file_path = get_random_name(speech_file)
+        convert_data_to_file(speech_file, file_path)
     if config.speech_to_text.engine == 'google':
         # support wav/aiff/flac
         text = convert_by_google(file_path, language)

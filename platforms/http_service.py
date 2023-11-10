@@ -1,7 +1,8 @@
+import asyncio
 import json
+import re
 import threading
 import time
-import asyncio
 
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Image, Voice
@@ -122,47 +123,40 @@ async def process_request(bot_request: BotRequest):
     logger.debug(f"Bot request {bot_request.request_time} done.")
 
 
-def construct_bot_request(data, audio):
+def construct_bot_request(data):
     session_id = data.get('session_id') or "friend-default_session"
     username = data.get('username') or "某人"
     message = data.get('message')
+    audio = data.get('audio')
     logger.info(f"Get message from {session_id}[{username}]:{message}")
-    logger.info(f"Get audio from {session_id}[{username}]:{audio}")
+    logger.info(f"Get audio from {session_id}[{username}]:{audio[:30]}...")
     with lock:
         bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
     return bot_request
 
 
-def get_content_type(audio):
-    from os.path import splitext
-    # 获取文件名
-    filename = audio.filename
-    # 提取文件后缀名
-    file_extension = splitext(filename)[1]
-    # 去除后缀名中的点号
-    file_extension = file_extension.lstrip('.')
+def get_content_type(audio_data):
+    # 使用正则表达式提取文件格式
+    match = re.search(r"data:audio/(\w+);", audio_data)
+    file_extension = ""
+    if match:
+        file_extension = match.group(1)
     return file_extension
 
 
 async def construct_bot_request_from_request(_request):
-    # 获取请求的Content-Type
-    content_type = _request.content_type
-    if content_type == 'application/json':
-        # 获取json数据
-        data = await _request.get_json()
-    else:
-        # 获取表单数据
-        data = await _request.form
-    audio = (await _request.files).get('audio')
-    if not data.get('message') and not audio:
+    # 获取json数据
+    data = await _request.get_json()
+    if not data.get('message') and not data.get('audio'):
         return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-    if not data.get('message') and audio:
+    if not data.get('message') and data.get('audio'):
         # 获取音频文件的内容类型
-        content_type = get_content_type(audio)
+        content_type = get_content_type(data.get('audio'))
         # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
         if content_type not in ['aiff', 'wav', 'flac']:
-            return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
-    return construct_bot_request(data, audio)
+            return ResponseResult(message="audio 必须是 wav 且经过base64编码后的字符串，参考：data:audio/wav;base64,xxxx",
+                                  result_status=RESPONSE_FAILED).to_json()
+    return construct_bot_request(data)
 
 
 @app.route('/v1/chat', methods=['POST'])
