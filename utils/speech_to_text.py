@@ -10,7 +10,7 @@ from aip import AipSpeech
 
 def init_google_converter():
     if config.speech_to_text.engine == 'google':
-        return sr.Recognizer
+        return sr.Recognizer()
     return None
 
 
