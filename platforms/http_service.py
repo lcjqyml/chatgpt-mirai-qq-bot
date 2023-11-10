@@ -129,7 +129,8 @@ def construct_bot_request(data):
     message = data.get('message')
     audio = data.get('audio')
     logger.info(f"Get message from {session_id}[{username}]:{message}")
-    logger.info(f"Get audio from {session_id}[{username}]:{audio[:30]}...")
+    if audio:
+        logger.info(f"Get audio from {session_id}[{username}]:{audio[:30]}...")
     with lock:
         bot_request = BotRequest(session_id, username, message, str(int(time.time() * 1000)), audio)
     return bot_request
