@@ -327,6 +327,14 @@ class TextToSpeech(BaseModel):
     """默认的提示音色前缀"""
 
 
+class SpeechToText(BaseModel):
+    engine: str = "google"
+    """baidu或google，baidu需要额外app_id、api_key、secret_key"""
+    app_id: str = ""
+    api_key: str = ""
+    secret_key: str = ""
+
+
 class AzureConfig(BaseModel):
     tts_speech_key: Optional[str] = None
     """TTS KEY"""
@@ -567,6 +575,7 @@ class Config(BaseModel):
     # === Response Settings ===
     text_to_image: TextToImage = TextToImage()
     text_to_speech: TextToSpeech = TextToSpeech()
+    speech_to_text: SpeechToText = SpeechToText()
     trigger: Trigger = Trigger()
     response: Response = Response()
     system: System = System()

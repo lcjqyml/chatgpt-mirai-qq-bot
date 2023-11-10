@@ -50,3 +50,5 @@ httpcore~=0.17.3
 g4f~=0.1.8.1
 SpeechRecognition~=3.10.0
 soundfile~=0.12.1
+baidu-aip~=4.16.12
+chardet~=5.2.0
