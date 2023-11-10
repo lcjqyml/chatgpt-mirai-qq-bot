@@ -147,32 +147,37 @@ def get_content_type(audio):
     return file_extension
 
 
+async def construct_bot_request_from_request(_request):
+    # 获取请求的Content-Type
+    content_type = _request.content_type
+    if content_type == 'application/json':
+        # 获取json数据
+        data = await _request.get_json()
+    else:
+        # 获取表单数据
+        data = await _request.form
+    logger.info(1)
+    audio = (await _request.files).get('audio')
+    logger.info(f"1.5 - {audio}")
+    if not data.get('message') and not audio:
+        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
+    if not data.get('message') and audio:
+        # 获取音频文件的内容类型
+        content_type = get_content_type(audio)
+        logger.info(f"1.6 - {content_type}")
+        # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
+        if content_type not in ['aiff', 'wav', 'flac']:
+            return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
+    return construct_bot_request(data, audio)
+
+
 @app.route('/v1/chat', methods=['POST'])
 async def v1_chat():
     try:
-        """同步请求，等待处理完毕返回结果"""
-        # 获取请求的Content-Type
-        content_type = request.content_type
-        if content_type == 'application/json':
-            # 获取json数据
-            data = await request.get_json()
-        else:
-            # 获取表单数据
-            data = await request.form
-        logger.info(1)
-        audio = (await request.files).get('audio')
-        logger.info(f"1.5 - {audio}")
-        if not data.get('message') and not audio:
-            return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-        if not data.get('message') and audio:
-            # 获取音频文件的内容类型
-            content_type = get_content_type(audio)
-            logger.info(f"1.6 - {content_type}")
-            # 如果内容类型不是audio/aiff，audio/wav或audio/flac，返回错误信息
-            if content_type not in ['aiff', 'wav', 'flac']:
-                return ResponseResult(message="audio 必须是 aiff、wav 或 flac！", result_status=RESPONSE_FAILED).to_json()
-        logger.info(2)
-        bot_request = construct_bot_request(data, audio)
+        result = await construct_bot_request_from_request(request)
+        if isinstance(result, ResponseResult):
+            return result
+        bot_request = result
         logger.info(3)
         await process_request(bot_request)
         # Return the result as JSON
@@ -184,39 +189,39 @@ async def v1_chat():
 
 @app.route('/v2/chat', methods=['POST'])
 async def v2_chat():
-    """异步请求，立即返回，通过/v2/chat/response获取内容"""
-    # 获取请求的Content-Type
-    content_type = request.content_type
-    if content_type == 'application/json':
-        # 获取json数据
-        data = await request.get_json()
-    else:
-        # 获取表单数据
-        data = await request.form
-    audio = (await request.files).get('audio')
-    if not data.get('message') and not audio:
-        return ResponseResult(message="message 和 audio 参数不能同时为空！", result_status=RESPONSE_FAILED).to_json()
-    bot_request = construct_bot_request(data, audio)
-    asyncio.create_task(process_request(bot_request))
-    request_dic[bot_request.request_time] = bot_request
-    # Return the result time as request_id
-    return bot_request.request_time
+    try:
+        """异步请求，立即返回，通过/v2/chat/response获取内容"""
+        result = await construct_bot_request_from_request(request)
+        if isinstance(result, ResponseResult):
+            return result
+        bot_request = result
+        asyncio.create_task(process_request(bot_request))
+        request_dic[bot_request.request_time] = bot_request
+        # Return the result time as request_id
+        return bot_request.request_time
+    except Exception as e:
+        logger.exception(e)
+        return ResponseResult(message="未知错误，请联系管理员！", result_status=RESPONSE_FAILED).to_json()
 
 
 @app.route('/v2/chat/response', methods=['GET'])
 async def v2_chat_response():
-    """异步请求时，配合/v2/chat获取内容"""
-    request_id = request.args.get("request_id")
-    bot_request: BotRequest = request_dic.get(request_id, None)
-    if bot_request is None:
-        return ResponseResult(message="没有更多了！", result_status=RESPONSE_FAILED).to_json()
-    response = bot_request.result.to_json()
-    if bot_request.done:
-        request_dic.pop(request_id)
-    else:
-        bot_request.result.pop_all()
-    logger.debug(f"Bot request {request_id} response -> \n{response[:100]}")
-    return response
+    try:
+        """异步请求时，配合/v2/chat获取内容"""
+        request_id = request.args.get("request_id")
+        bot_request: BotRequest = request_dic.get(request_id, None)
+        if bot_request is None:
+            return ResponseResult(message="没有更多了！", result_status=RESPONSE_FAILED).to_json()
+        response = bot_request.result.to_json()
+        if bot_request.done:
+            request_dic.pop(request_id)
+        else:
+            bot_request.result.pop_all()
+        logger.debug(f"Bot request {request_id} response -> \n{response[:100]}")
+        return response
+    except Exception as e:
+        logger.exception(e)
+        return ResponseResult(message="未知错误，请联系管理员！", result_status=RESPONSE_FAILED).to_json()
 
 
 def clear_request_dict():
