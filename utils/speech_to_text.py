@@ -3,6 +3,7 @@ from loguru import logger
 from werkzeug.datastructures import FileStorage
 import os
 import time
+import soundfile as sf
 
 
 def get_random_name(speech_file):
@@ -11,14 +12,15 @@ def get_random_name(speech_file):
     return f'/tmp/{current_time}{file_extension}'
 
 
-async def speech_to_text(speech_file):
+def speech_to_text(speech_file):
     logger.info(8)
     if not speech_file:
         return ""
     file_path = speech_file
     if isinstance(file_path, FileStorage):
         file_path = get_random_name(speech_file)
-        await speech_file.save(file_path)
+        data, _sr = sf.read(speech_file)
+        sf.write(file_path, data, _sr)
     r = sr.Recognizer()
     logger.info(9)
     # 使用AudioFile方法打开音频文件
@@ -32,3 +34,10 @@ async def speech_to_text(speech_file):
     logger.info(12)
     logger.debug(f"Speech to text done. -> {text}")
     return text
+
+
+if __name__ == '__main__':
+    try:
+        speech_to_text("C:\\Users\\Milin3\\Desktop\\1699579357324.wav")
+    except Exception as e:
+        logger.exception(e)

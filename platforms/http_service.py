@@ -112,7 +112,7 @@ async def process_request(bot_request: BotRequest):
         logger.info(6)
         if bot_request.no_message() and bot_request.audio:
             from utils.speech_to_text import speech_to_text
-            bot_request.message = await speech_to_text(bot_request.audio)
+            bot_request.message = speech_to_text(bot_request.audio)
         logger.info(7)
         await handle_message(
             response,
