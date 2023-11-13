@@ -41,7 +41,7 @@ def get_random_name(speech_file):
     if isinstance(speech_file, FileStorage):
         file_extension = os.path.splitext(speech_file.filename)[1].lower()
     elif speech_file.startswith("data:audio"):
-        file_extension = get_content_type(speech_file)
+        file_extension = f'.{get_content_type(speech_file)}'
     else:
         raise Exception("error file.")
     return f'/tmp/{current_time}{file_extension}'
