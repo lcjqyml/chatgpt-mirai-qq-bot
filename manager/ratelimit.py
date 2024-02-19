@@ -78,7 +78,8 @@ class RateLimitManager:
 
         # 删除过期的记录
         time_diff_dondition = (usage is not None and usage['time'] != current_time)
-        day_diff_condition = (usage is not None and usage['time'] == current_time and usage['day'] != current_day)
+        day_diff_condition = (usage is not None and usage['time'] == current_time
+                              and ('day' not in usage or usage['day'] != current_day))
         if time_diff_dondition or day_diff_condition:
             self.usage_db.remove(doc_ids=[usage.doc_id])
             usage = None
