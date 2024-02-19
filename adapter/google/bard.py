@@ -36,7 +36,7 @@ class BardAdapter(BotAdapter):
     async def get_at_token(self):
         
         response = await self.client.get(
-            "https://bard.google.com/?hl=en",
+            "https://gemini.google.com/?hl=en",
             timeout=30,
             headers=self.headers,
             follow_redirects=True,
@@ -58,7 +58,7 @@ class BardAdapter(BotAdapter):
         if not self.at:
             await self.get_at_token()
         try:
-            url = "https://bard.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"
+            url = "https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"
             content = quote(prompt.replace('"',"'")).replace("%0A","%5C%5Cn")
             # 奇怪的格式 [null,"[[\"\"],null,[\"\",\"\",\"\"]]"]
             raw_data = f"f.req=%5Bnull%2C%22%5B%5B%5C%22{content}%5C%22%5D%2Cnull%2C%5B%5C%22{self.bard_session_id}%5C%22%2C%5C%22{self.r}%5C%22%2C%5C%22{self.rc}%5C%22%5D%5D%22%5D&at={self.at}&"
