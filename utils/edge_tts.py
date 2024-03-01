@@ -19,9 +19,14 @@ async def load_edge_tts_voices():
     return edge_tts_voices
 
 
+def optimize_text(text: str):
+    return text.replace("*", "-")
+
+
 async def edge_tts_speech(text: str, tts_voice: TtsVoice, path: str):
     try:
-        communicate = edge_tts.Communicate(text, tts_voice.full_name)
+        new_text = optimize_text(text)
+        communicate = edge_tts.Communicate(new_text, tts_voice.full_name)
         output_path = path if path.endswith(".mp3") else f"{path}.mp3"
         await communicate.save(output_path)
         return output_path
