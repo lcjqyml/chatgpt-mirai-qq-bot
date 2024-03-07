@@ -35,7 +35,8 @@ async def get_ping_response(conversation_context: ConversationContext):
     tts_voices = await TtsVoiceManager.list_tts_voices(
         config.text_to_speech.engine, config.text_to_speech.default_voice_prefix)
     if tts_voices:
-        supported_tts = ",".join([v.alias for v in tts_voices])
+        tts_str = ",".join([v.alias for v in tts_voices])
+        supported_tts = f"{tts_str},关闭"
         response += config.response.ping_tts_response.format(supported_tts=supported_tts)
     return response
 
@@ -145,7 +146,7 @@ async def handle_message(_respond: Callable, session_id: str, message: str,
             new_voice = voice_type_search[1].strip()
             if new_voice in ['关闭', "None"]:
                 conversation_context.conversation_voice = None
-                await respond("已关闭语音，让我们继续聊天吧！")
+                await respond("已关闭语音！")
             elif config.text_to_speech.engine == "vits":
                 from utils.vits_tts import vits_api_instance
                 try:
