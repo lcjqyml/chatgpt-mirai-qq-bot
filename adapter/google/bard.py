@@ -41,7 +41,7 @@ class BardAdapter(BotAdapter):
             headers=self.headers,
             follow_redirects=True,
         )
-        self.at = quote(response.text.split('"SNlM0e":"')[1].split('","')[0])
+        self.at = quote(response.text.split('"SNlM0e":"')[1].split('",')[0])
 
     async def rollback(self):
         raise BotOperationNotSupportedException()
