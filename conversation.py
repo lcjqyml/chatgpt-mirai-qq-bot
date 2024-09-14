@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 import httpx
 from EdgeGPT.EdgeGPT import ConversationStyle
 from graia.amnesia.message import MessageChain
-from graia.ariadne.message.element import Image as GraiaImage, Element
+from graia.ariadne.message.element import Image as GraiaImage, Element, Plain
 from loguru import logger
 
 from adapter.baidu.yiyan import YiyanAdapter
@@ -198,10 +198,14 @@ class ConversationContext:
                 if isinstance(item, Element):
                     yield item
                 else:
-                    yield await self.renderer.render(item)
+                    _render = await self.renderer.render(item)
+                    _render = self.remove_duplicates(_render)
+                    yield _render
                 self.last_resp = item or ''
                 self.last_resp_time = int(time.time())
-            yield await self.renderer.result()
+            _render = await self.renderer.result()
+            _render = self.remove_duplicates(_render)
+            yield _render
 
     async def rollback(self):
         resp = await self.adapter.rollback()
@@ -241,6 +245,44 @@ class ConversationContext:
         elif keyword != 'default':
             raise PresetNotFoundException(keyword)
         self.preset = keyword
+
+    def remove_duplicates(self, chain):
+        seen = set()
+        unique_messages = []
+        if not chain:
+            return chain
+        for message in chain:
+            message = self.fix_duplicate_message(message)
+            str_message = str(message)
+            if str_message not in seen:
+                unique_messages.append(message)
+                seen.add(str_message)
+        return MessageChain(unique_messages)
+
+    def fix_duplicate_message(self, message):
+        # 提取字符串
+        text = message.text
+
+        # 获取字符串长度
+        length = len(text)
+
+        # 如果字符串长度是奇数，直接返回原来的Plain
+        if length % 2 != 0:
+            return message
+
+        # 分成两半
+        half_length = length // 2
+        first_half = text[:half_length]
+        second_half = text[half_length:]
+
+        # 检查两半是否相同
+        if first_half == second_half:
+            # 重构去除重复后的字符串
+            new_text = first_half
+            return Plain(new_text)
+        else:
+            # 返回原来的Plain
+            return message
 
     def delete_message(self, respond_msg):
         # TODO: adapt to all platforms
