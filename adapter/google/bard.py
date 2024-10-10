@@ -27,11 +27,13 @@ class BardAdapter(BotAdapter):
         self.r = ""
         self.rc = ""
         self.headers = {
-            "Cookie": self.account.cookie_content,
-            # 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            "cookie": self.account.cookie_content,
+            'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
         }
 
     async def get_at_token(self):

@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY ./fonts/sarasa-mono-sc-regular.ttf /usr/share/fonts/
 
 RUN apt-get update && \
-    apt install --no-install-recommends xvfb binutils build-essential qtbase5-dev wkhtmltopdf ffmpeg dbus -yq && \
+    apt install --no-install-recommends xvfb binutils build-essential qtbase5-dev wkhtmltopdf ffmpeg dbus vim -yq && \
     (strip --remove-section=.note.ABI-tag /usr/lib/x86_64-linux-gnu/libQt5Core.so.5 || true) && \
     apt-get clean && \
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false && \
