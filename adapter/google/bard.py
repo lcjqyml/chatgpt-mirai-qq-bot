@@ -80,7 +80,9 @@ class BardAdapter(BotAdapter):
                 logger.error(f"[Bard] 请求出现错误，状态码: {response.status_code}")
                 logger.error(f"[Bard] {response.text}")
                 raise Exception("Authentication failed")
-            res = response.text.split("\n")
+            res_text = response.text
+            write_log(res_text)
+            res = res_text.split("\n")
             for lines in res:
                 if "wrb.fr" in lines:
                     data = json.loads(json.loads(lines)[0][2])
