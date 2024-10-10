@@ -9,7 +9,7 @@ from config import BardCookiePath
 from constants import botManager
 from loguru import logger
 import httpx
-
+from utils.file_logger import write_log
 
 hashu = lambda word: ctypes.c_uint64(hash(word)).value
 
@@ -42,7 +42,9 @@ class BardAdapter(BotAdapter):
             headers=self.headers,
             follow_redirects=True,
         )
-        self.at = quote(response.text.split('"SNlM0e":"')[1].split('",')[0])
+        response_text = response.text
+        write_log(response_text)
+        self.at = quote(response_text.split('"SNlM0e":"')[1].split('",')[0])
 
     async def rollback(self):
         raise BotOperationNotSupportedException()
