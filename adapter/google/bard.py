@@ -26,6 +26,7 @@ class BardAdapter(BotAdapter):
         self.bard_session_id = ""
         self.r = ""
         self.rc = ""
+        self.at = self.account.at
         self.headers = {
             "cookie": self.account.cookie_content,
             'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -37,7 +38,9 @@ class BardAdapter(BotAdapter):
         }
 
     async def get_at_token(self):
-        
+        if self.at:
+            logger.info(f"SNlM0e: {self.at}")
+            return
         response = await self.client.get(
             "https://gemini.google.com/?hl=en",
             timeout=30,

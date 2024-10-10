@@ -170,6 +170,10 @@ class BingCookiePath(BaseModel):
 class BardCookiePath(BaseModel):
     cookie_content: str
     """Bard 的 Cookie 文件内容"""
+
+    at: str
+    """通过Cookie请求获取的at值，cookie无法直接获取到时，直接从浏览器获取的SNlM0e值"""
+
     proxy: Optional[str] = None
     """可选的代理地址，留空则检测系统代理"""
 
