@@ -1,18 +1,32 @@
-import g4f
+from typing import List
+
+from g4f.client import Client
+from g4f.Provider import *
 from loguru import logger
 
 from adapter.common.chat_helper import ChatMessage, ROLE_USER
 from config import G4fModels
 
 
+def convert_providers(providers: List[str]):
+    ps = []
+    for p in providers:
+        ps.append(eval(p))
+    return ps
+
+
 def g4f_check_account(account: G4fModels):
 
     try:
-        response = g4f.ChatCompletion.create(
-            model=eval(account.model) if account.model.startswith("g4f.models.") else account.model,
-            provider=eval(account.provider),
+        providers = []
+        if account.providers:
+            providers = convert_providers(account.providers)
+        client = Client()
+        response = client.chat.completions.create(
+            model=account.model,
+            provider=None if not providers else RetryProvider(providers),
             messages=[vars(ChatMessage(ROLE_USER, "hello"))],
-        )
+        ).choices[0].message.content
         logger.debug(f"g4f model ({vars(account)}) is active. hello -> {response}")
     except KeyError as e:
         logger.debug(f"g4f model ({vars(account)}) is inactive. hello -> {e}")
@@ -24,9 +38,9 @@ def parse(model_alias: str):
     from constants import botManager
     return next(
         (
-            model
-            for model in botManager.bots["gpt4free"]
-            if model_alias == model.alias
+            account
+            for account in botManager.bots["gpt4free"]
+            if model_alias == account.alias
         ),
         None
     )

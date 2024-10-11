@@ -268,7 +268,7 @@ class ChatGLMAuths(BaseModel):
 
 
 class G4fModels(BaseModel):
-    provider: str
+    providers: List[str]
     """ai提供方"""
     model: str
     """ai模型"""
