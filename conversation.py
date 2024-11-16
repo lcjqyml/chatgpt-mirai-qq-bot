@@ -293,6 +293,9 @@ class ConversationContext:
         current_time = time.time()
         return timeout_seconds == -1 or self.last_resp_time == -1 or current_time - self.last_resp_time < timeout_seconds
 
+    def is_new_conversation(self):
+        return self.last_resp_time == -1
+
     async def check_and_reset(self):
         if self.not_timeout():
             return

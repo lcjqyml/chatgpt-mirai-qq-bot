@@ -222,7 +222,7 @@ async def handle_message(_respond: Callable, session_id: str, message: str,
         # 没有任务那就聊天吧！
         if not task:
             task = conversation_context.ask(prompt=prompt, chain=chain, name=nickname)
-        if not conversation_context.not_timeout():
+        if conversation_context.is_new_conversation() or (not conversation_context.not_timeout()):
             await respond("思考中……请稍后~")
         async for rendered in task:
             if rendered:
