@@ -288,12 +288,15 @@ class ConversationContext:
         # TODO: adapt to all platforms
         pass
 
-    async def check_and_reset(self):
+    def not_timeout(self):
         timeout_seconds = config.system.auto_reset_timeout_seconds
         current_time = time.time()
-        if timeout_seconds == -1 or self.last_resp_time == -1 or current_time - self.last_resp_time < timeout_seconds:
+        return timeout_seconds == -1 or self.last_resp_time == -1 or current_time - self.last_resp_time < timeout_seconds
+
+    async def check_and_reset(self):
+        if self.not_timeout():
             return
-        logger.debug(f"Reset conversation({self.session_id}) after {current_time - self.last_resp_time} seconds.")
+        logger.debug(f"Reset conversation({self.session_id}) after {time.time() - self.last_resp_time} seconds.")
         async for _resp in self.reset():
             logger.debug(_resp)
 
