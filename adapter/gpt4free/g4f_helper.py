@@ -27,6 +27,8 @@ def g4f_check_account(account: G4fModels):
             provider=None if not providers else RetryProvider(providers),
             messages=[vars(ChatMessage(ROLE_USER, "hello"))],
         ).choices[0].message.content
+        if not response or "error" in response.lower():
+            return False
         logger.debug(f"g4f model ({vars(account)}) is active. hello -> {response}")
     except KeyError as e:
         logger.debug(f"g4f model ({vars(account)}) is inactive. hello -> {e}")

@@ -350,7 +350,9 @@ class BotManager:
             try:
                 if g4f_helper.g4f_check_account(account):
                     self.bots["gpt4free"].append(account)
-                    logger.success("解析成功！", i=i + 1)
+                    logger.success("解析成功！")
+                else:
+                    logger.error("解析失败！")
             except Exception as e:
                 logger.error("解析失败：")
                 logger.exception(e)
